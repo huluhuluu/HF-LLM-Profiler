@@ -1,0 +1,1076 @@
+gpt2-xl | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  9.83 M  
+fwd MACs:                                                               6.08 TMACs
+fwd FLOPs:                                                              12.16 TFLOPS
+fwd+bwd MACs:                                                           18.24 TMACs
+fwd+bwd FLOPs:                                                          36.49 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  9.83 M = 100% Params, 6.08 TMACs = 100% MACs, 12.16 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    9.83 M = 100% Params, 6.08 TMACs = 100% MACs, 12.16 TFLOPS = 100% FLOPs
+    (model): GPT2ForSequenceClassification(
+      9.83 M = 100% Params, 6.08 TMACs = 100% MACs, 12.16 TFLOPS = 100% FLOPs
+      (transformer): GPT2Model(
+        9.83 M = 100% Params, 6.08 TMACs = 100% MACs, 12.16 TFLOPS = 100% FLOPs
+        (wte): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 50257, 1600)
+        (wpe): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 1024, 1600)
+        (drop): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.1, inplace=False)
+        (h): ModuleList(
+          (0-47): 48 x GPT2Block(
+            204.8 K = 2.08% Params, 126.67 GMACs = 2.08% MACs, 253.4 GFLOPS = 2.08% FLOPs
+            (ln_1): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 32.77 MFLOPS = 0% FLOPs, (1600,), eps=1e-05, elementwise_affine=True)
+            (attn): GPT2SdpaAttention(
+              204.8 K = 2.08% Params, 42.78 GMACs = 0.7% MACs, 85.56 GFLOPS = 0.7% FLOPs
+              (c_attn): lora.Linear(
+                204.8 K = 2.08% Params, 32.3 GMACs = 0.53% MACs, 64.59 GFLOPS = 0.53% FLOPs
+                (base_layer): Conv1D(nf=4800, nx=1600)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  51.2 K = 0.52% Params, 209.72 MMACs = 0% MACs, 419.43 MFLOPS = 0% FLOPs
+                  (default): Linear(51.2 K = 0.52% Params, 209.72 MMACs = 0% MACs, 419.43 MFLOPS = 0% FLOPs, in_features=1600, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  153.6 K = 1.56% Params, 629.15 MMACs = 0.01% MACs, 1.26 GFLOPS = 0.01% FLOPs
+                  (default): Linear(153.6 K = 1.56% Params, 629.15 MMACs = 0.01% MACs, 1.26 GFLOPS = 0.01% FLOPs, in_features=32, out_features=4800, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (c_proj): Conv1D(nf=1600, nx=1600)
+              (attn_dropout): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.1, inplace=False)
+              (resid_dropout): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.1, inplace=False)
+            )
+            (ln_2): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 32.77 MFLOPS = 0% FLOPs, (1600,), eps=1e-05, elementwise_affine=True)
+            (mlp): GPT2MLP(
+              0 = 0% Params, 83.89 GMACs = 1.38% MACs, 167.77 GFLOPS = 1.38% FLOPs
+              (c_fc): Conv1D(nf=6400, nx=1600)
+              (c_proj): Conv1D(nf=1600, nx=6400)
+              (act): NewGELUActivation(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              (dropout): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.1, inplace=False)
+            )
+          )
+        )
+        (ln_f): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 32.77 MFLOPS = 0% FLOPs, (1600,), eps=1e-05, elementwise_affine=True)
+      )
+      (score): Linear(0 = 0% Params, 131.07 MMACs = 0% MACs, 262.14 MFLOPS = 0% FLOPs, in_features=1600, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+Qwen2.5-3B | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  7.37 M  
+fwd MACs:                                                               11.39 TMACs
+fwd FLOPs:                                                              22.79 TFLOPS
+fwd+bwd MACs:                                                           34.18 TMACs
+fwd+bwd FLOPs:                                                          68.37 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  7.37 M = 100% Params, 11.39 TMACs = 100% MACs, 22.79 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    7.37 M = 100% Params, 11.39 TMACs = 100% MACs, 22.79 TFLOPS = 100% FLOPs
+    (model): Qwen2ForSequenceClassification(
+      7.37 M = 100% Params, 11.39 TMACs = 100% MACs, 22.79 TFLOPS = 100% FLOPs
+      (model): Qwen2Model(
+        7.37 M = 100% Params, 11.39 TMACs = 100% MACs, 22.79 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 151936, 2048)
+        (layers): ModuleList(
+          (0-35): 36 x Qwen2DecoderLayer(
+            204.8 K = 2.78% Params, 316.52 GMACs = 2.78% MACs, 633.08 GFLOPS = 2.78% FLOPs
+            (self_attn): Qwen2SdpaAttention(
+              204.8 K = 2.78% Params, 39.49 GMACs = 0.35% MACs, 78.99 GFLOPS = 0.35% FLOPs
+              (q_proj): lora.Linear(
+                131.07 K = 1.78% Params, 17.72 GMACs = 0.16% MACs, 35.43 GFLOPS = 0.16% FLOPs
+                (base_layer): Linear(0 = 0% Params, 17.18 GMACs = 0.15% MACs, 34.36 GFLOPS = 0.15% FLOPs, in_features=2048, out_features=2048, bias=True)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs
+                  (default): Linear(65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs, in_features=2048, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs
+                  (default): Linear(65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs, in_features=32, out_features=2048, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 2.15 GMACs = 0.02% MACs, 4.29 GFLOPS = 0.02% FLOPs, in_features=2048, out_features=256, bias=True)
+              (v_proj): lora.Linear(
+                73.73 K = 1% Params, 2.45 GMACs = 0.02% MACs, 4.9 GFLOPS = 0.02% FLOPs
+                (base_layer): Linear(0 = 0% Params, 2.15 GMACs = 0.02% MACs, 4.29 GFLOPS = 0.02% FLOPs, in_features=2048, out_features=256, bias=True)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs
+                  (default): Linear(65.54 K = 0.89% Params, 268.44 MMACs = 0% MACs, 536.87 MFLOPS = 0% FLOPs, in_features=2048, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  8.19 K = 0.11% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs
+                  (default): Linear(8.19 K = 0.11% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs, in_features=32, out_features=256, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 17.18 GMACs = 0.15% MACs, 34.36 GFLOPS = 0.15% FLOPs, in_features=2048, out_features=2048, bias=False)
+              (rotary_emb): Qwen2RotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+            )
+            (mlp): Qwen2MLP(
+              0 = 0% Params, 277.03 GMACs = 2.43% MACs, 554.1 GFLOPS = 2.43% FLOPs
+              (gate_proj): Linear(0 = 0% Params, 92.34 GMACs = 0.81% MACs, 184.68 GFLOPS = 0.81% FLOPs, in_features=2048, out_features=11008, bias=False)
+              (up_proj): Linear(0 = 0% Params, 92.34 GMACs = 0.81% MACs, 184.68 GFLOPS = 0.81% FLOPs, in_features=2048, out_features=11008, bias=False)
+              (down_proj): Linear(0 = 0% Params, 92.34 GMACs = 0.81% MACs, 184.68 GFLOPS = 0.81% FLOPs, in_features=11008, out_features=2048, bias=False)
+              (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 45.09 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): Qwen2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (2048,), eps=1e-06)
+            (post_attention_layernorm): Qwen2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (2048,), eps=1e-06)
+          )
+        )
+        (norm): Qwen2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (2048,), eps=1e-06)
+        (rotary_emb): Qwen2RotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      )
+      (score): Linear(0 = 0% Params, 167.77 MMACs = 0% MACs, 335.54 MFLOPS = 0% FLOPs, in_features=2048, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+Llama-3.1-8B | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  13.63 M 
+fwd MACs:                                                               28.64 TMACs
+fwd FLOPs:                                                              57.29 TFLOPS
+fwd+bwd MACs:                                                           85.93 TMACs
+fwd+bwd FLOPs:                                                          171.87 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+    (model): LlamaForSequenceClassification(
+      13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+      (model): LlamaModel(
+        13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 128256, 4096)
+        (layers): ModuleList(
+          (0-31): 32 x LlamaDecoderLayer(
+            425.98 K = 3.12% Params, 895.1 GMACs = 3.12% MACs, 1.79 TFLOPS = 3.12% FLOPs
+            (self_attn): LlamaSdpaAttention(
+              425.98 K = 3.12% Params, 173.54 GMACs = 0.61% MACs, 347.09 GFLOPS = 0.61% FLOPs
+              (q_proj): lora.Linear(
+                262.14 K = 1.92% Params, 69.79 GMACs = 0.24% MACs, 139.59 GFLOPS = 0.24% FLOPs
+                (base_layer): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=32, out_features=4096, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+              (v_proj): lora.Linear(
+                163.84 K = 1.2% Params, 17.85 GMACs = 0.06% MACs, 35.7 GFLOPS = 0.06% FLOPs
+                (base_layer): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs
+                  (default): Linear(32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs, in_features=32, out_features=1024, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+              (rotary_emb): LlamaRotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+            )
+            (mlp): LlamaMLP(
+              0 = 0% Params, 721.55 GMACs = 2.52% MACs, 1.44 TFLOPS = 2.52% FLOPs
+              (gate_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (up_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (down_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=14336, out_features=4096, bias=False)
+              (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 58.72 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+            (post_attention_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+          )
+        )
+        (norm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+        (rotary_emb): LlamaRotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      )
+      (score): Linear(0 = 0% Params, 335.54 MMACs = 0% MACs, 671.09 MFLOPS = 0% FLOPs, in_features=4096, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  13.63 M 
+fwd MACs:                                                               28.64 TMACs
+fwd FLOPs:                                                              57.29 TFLOPS
+fwd+bwd MACs:                                                           85.93 TMACs
+fwd+bwd FLOPs:                                                          171.87 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+    (model): MistralForSequenceClassification(
+      13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+      (model): MistralModel(
+        13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 32000, 4096)
+        (layers): ModuleList(
+          (0-31): 32 x MistralDecoderLayer(
+            425.98 K = 3.12% Params, 895.1 GMACs = 3.12% MACs, 1.79 TFLOPS = 3.12% FLOPs
+            (self_attn): MistralSdpaAttention(
+              425.98 K = 3.12% Params, 173.54 GMACs = 0.61% MACs, 347.09 GFLOPS = 0.61% FLOPs
+              (q_proj): lora.Linear(
+                262.14 K = 1.92% Params, 69.79 GMACs = 0.24% MACs, 139.59 GFLOPS = 0.24% FLOPs
+                (base_layer): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=32, out_features=4096, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+              (v_proj): lora.Linear(
+                163.84 K = 1.2% Params, 17.85 GMACs = 0.06% MACs, 35.7 GFLOPS = 0.06% FLOPs
+                (base_layer): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs
+                  (default): Linear(32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs, in_features=32, out_features=1024, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+              (rotary_emb): MistralRotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+            )
+            (mlp): MistralMLP(
+              0 = 0% Params, 721.55 GMACs = 2.52% MACs, 1.44 TFLOPS = 2.52% FLOPs
+              (gate_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (up_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (down_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=14336, out_features=4096, bias=False)
+              (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 58.72 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+            (post_attention_layernorm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+          )
+        )
+        (norm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+      )
+      (score): Linear(0 = 0% Params, 335.54 MMACs = 0% MACs, 671.09 MFLOPS = 0% FLOPs, in_features=4096, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+
+Falcon3-10B-Base | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  13.11 M 
+fwd MACs:                                                               38.97 TMACs
+fwd FLOPs:                                                              77.94 TFLOPS
+fwd+bwd MACs:                                                           116.9 TMACs
+fwd+bwd FLOPs:                                                          233.81 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  13.11 M = 100% Params, 38.97 TMACs = 100% MACs, 77.94 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    13.11 M = 100% Params, 38.97 TMACs = 100% MACs, 77.94 TFLOPS = 100% FLOPs
+    (model): LlamaForSequenceClassification(
+      13.11 M = 100% Params, 38.97 TMACs = 100% MACs, 77.94 TFLOPS = 100% FLOPs
+      (model): LlamaModel(
+        13.11 M = 100% Params, 38.97 TMACs = 100% MACs, 77.94 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 131072, 3072)
+        (layers): ModuleList(
+          (0-39): 40 x LlamaDecoderLayer(
+            327.68 K = 2.5% Params, 974.15 GMACs = 2.5% MACs, 1.95 TFLOPS = 2.5% FLOPs
+            (self_attn): LlamaAttention(
+              327.68 K = 2.5% Params, 104.42 GMACs = 0.27% MACs, 208.84 GFLOPS = 0.27% FLOPs
+              (q_proj): lora.Linear(
+                196.61 K = 1.5% Params, 39.46 GMACs = 0.1% MACs, 78.92 GFLOPS = 0.1% FLOPs
+                (base_layer): Linear(0 = 0% Params, 38.65 GMACs = 0.1% MACs, 77.31 GFLOPS = 0.1% FLOPs, in_features=3072, out_features=3072, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs
+                  (default): Linear(98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs, in_features=3072, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs
+                  (default): Linear(98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs, in_features=32, out_features=3072, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 12.88 GMACs = 0.03% MACs, 25.77 GFLOPS = 0.03% FLOPs, in_features=3072, out_features=1024, bias=False)
+              (v_proj): lora.Linear(
+                131.07 K = 1% Params, 13.42 GMACs = 0.03% MACs, 26.84 GFLOPS = 0.03% FLOPs
+                (base_layer): Linear(0 = 0% Params, 12.88 GMACs = 0.03% MACs, 25.77 GFLOPS = 0.03% FLOPs, in_features=3072, out_features=1024, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs
+                  (default): Linear(98.3 K = 0.75% Params, 402.65 MMACs = 0% MACs, 805.31 MFLOPS = 0% FLOPs, in_features=3072, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  32.77 K = 0.25% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs
+                  (default): Linear(32.77 K = 0.25% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs, in_features=32, out_features=1024, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 38.65 GMACs = 0.1% MACs, 77.31 GFLOPS = 0.1% FLOPs, in_features=3072, out_features=3072, bias=False)
+            )
+            (mlp): LlamaMLP(
+              0 = 0% Params, 869.73 GMACs = 2.23% MACs, 1.74 TFLOPS = 2.23% FLOPs
+              (gate_proj): Linear(0 = 0% Params, 289.91 GMACs = 0.74% MACs, 579.82 GFLOPS = 0.74% FLOPs, in_features=3072, out_features=23040, bias=False)
+              (up_proj): Linear(0 = 0% Params, 289.91 GMACs = 0.74% MACs, 579.82 GFLOPS = 0.74% FLOPs, in_features=3072, out_features=23040, bias=False)
+              (down_proj): Linear(0 = 0% Params, 289.91 GMACs = 0.74% MACs, 579.82 GFLOPS = 0.74% FLOPs, in_features=23040, out_features=3072, bias=False)
+              (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 94.37 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (3072,), eps=1e-06)
+            (post_attention_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (3072,), eps=1e-06)
+          )
+        )
+        (norm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (3072,), eps=1e-06)
+        (rotary_emb): LlamaRotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      )
+      (score): Linear(0 = 0% Params, 251.66 MMACs = 0% MACs, 503.32 MFLOPS = 0% FLOPs, in_features=3072, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+starcoder2-15b | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  24.25 M 
+fwd MACs:                                                               62.98 TMACs
+fwd FLOPs:                                                              125.97 TFLOPS
+fwd+bwd MACs:                                                           188.93 TMACs
+fwd+bwd FLOPs:                                                          377.91 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  24.25 M = 100% Params, 62.98 TMACs = 100% MACs, 125.97 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    24.25 M = 100% Params, 62.98 TMACs = 100% MACs, 125.97 TFLOPS = 100% FLOPs
+    (model): Starcoder2ForSequenceClassification(
+      24.25 M = 100% Params, 62.98 TMACs = 100% MACs, 125.97 TFLOPS = 100% FLOPs
+      (model): Starcoder2Model(
+        24.25 M = 100% Params, 62.98 TMACs = 100% MACs, 125.97 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 49152, 6144)
+        (layers): ModuleList(
+          (0-39): 40 x Starcoder2DecoderLayer(
+            606.21 K = 2.5% Params, 1.57 TMACs = 2.5% MACs, 3.15 TFLOPS = 2.5% FLOPs
+            (self_attn): Starcoder2Attention(
+              606.21 K = 2.5% Params, 337.49 GMACs = 0.54% MACs, 674.98 GFLOPS = 0.54% FLOPs
+              (q_proj): lora.Linear(
+                393.22 K = 1.62% Params, 156.23 GMACs = 0.25% MACs, 312.46 GFLOPS = 0.25% FLOPs
+                (base_layer): Linear(0 = 0% Params, 154.62 GMACs = 0.25% MACs, 309.24 GFLOPS = 0.25% FLOPs, in_features=6144, out_features=6144, bias=True)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs
+                  (default): Linear(196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs, in_features=6144, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs
+                  (default): Linear(196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs, in_features=32, out_features=6144, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 12.88 GMACs = 0.02% MACs, 25.77 GFLOPS = 0.02% FLOPs, in_features=6144, out_features=512, bias=True)
+              (v_proj): lora.Linear(
+                212.99 K = 0.88% Params, 13.76 GMACs = 0.02% MACs, 27.51 GFLOPS = 0.02% FLOPs
+                (base_layer): Linear(0 = 0% Params, 12.88 GMACs = 0.02% MACs, 25.77 GFLOPS = 0.02% FLOPs, in_features=6144, out_features=512, bias=True)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs
+                  (default): Linear(196.61 K = 0.81% Params, 805.31 MMACs = 0% MACs, 1.61 GFLOPS = 0% FLOPs, in_features=6144, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  16.38 K = 0.07% Params, 67.11 MMACs = 0% MACs, 134.22 MFLOPS = 0% FLOPs
+                  (default): Linear(16.38 K = 0.07% Params, 67.11 MMACs = 0% MACs, 134.22 MFLOPS = 0% FLOPs, in_features=32, out_features=512, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 154.62 GMACs = 0.25% MACs, 309.24 GFLOPS = 0.25% FLOPs, in_features=6144, out_features=6144, bias=True)
+            )
+            (mlp): Starcoder2MLP(
+              0 = 0% Params, 1.24 TMACs = 1.96% MACs, 2.47 TFLOPS = 1.96% FLOPs
+              (c_fc): Linear(0 = 0% Params, 618.48 GMACs = 0.98% MACs, 1.24 TFLOPS = 0.98% FLOPs, in_features=6144, out_features=24576, bias=True)
+              (c_proj): Linear(0 = 0% Params, 618.48 GMACs = 0.98% MACs, 1.24 TFLOPS = 0.98% FLOPs, in_features=24576, out_features=6144, bias=True)
+              (act): PytorchGELUTanh(0 = 0% Params, 0 MACs = 0% MACs, 100.66 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 125.83 MFLOPS = 0% FLOPs, (6144,), eps=1e-05, elementwise_affine=True)
+            (post_attention_layernorm): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 125.83 MFLOPS = 0% FLOPs, (6144,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+        (norm): LayerNorm(0 = 0% Params, 0 MACs = 0% MACs, 125.83 MFLOPS = 0% FLOPs, (6144,), eps=1e-05, elementwise_affine=True)
+        (rotary_emb): Starcoder2RotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      )
+      (score): Linear(0 = 0% Params, 503.32 MMACs = 0% MACs, 1.01 GFLOPS = 0% FLOPs, in_features=6144, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+
+Mistral-7B-v0.1 | batch size 8 | seq_len 512
+Mistral-7B-v0.1 | batch size 8 | seq_len 512
+Mistral-7B-v0.1 | batch size 8 | seq_len 512
+Mistral-7B-v0.1 | batch size 8 | seq_len 512
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  13.63 M 
+fwd MACs:                                                               28.64 TMACs
+fwd FLOPs:                                                              57.29 TFLOPS
+fwd+bwd MACs:                                                           85.93 TMACs
+fwd+bwd FLOPs:                                                          171.87 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+PeftModel(
+  13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+  (base_model): LoraModel(
+    13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+    (model): MistralForSequenceClassification(
+      13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+      (model): MistralModel(
+        13.63 M = 100% Params, 28.64 TMACs = 100% MACs, 57.29 TFLOPS = 100% FLOPs
+        (embed_tokens): Embedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, 32000, 4096)
+        (layers): ModuleList(
+          (0-31): 32 x MistralDecoderLayer(
+            425.98 K = 3.12% Params, 895.1 GMACs = 3.12% MACs, 1.79 TFLOPS = 3.12% FLOPs
+            (self_attn): MistralAttention(
+              425.98 K = 3.12% Params, 173.54 GMACs = 0.61% MACs, 347.09 GFLOPS = 0.61% FLOPs
+              (q_proj): lora.Linear(
+                262.14 K = 1.92% Params, 69.79 GMACs = 0.24% MACs, 139.59 GFLOPS = 0.24% FLOPs
+                (base_layer): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=32, out_features=4096, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (k_proj): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+              (v_proj): lora.Linear(
+                163.84 K = 1.2% Params, 17.85 GMACs = 0.06% MACs, 35.7 GFLOPS = 0.06% FLOPs
+                (base_layer): Linear(0 = 0% Params, 17.18 GMACs = 0.06% MACs, 34.36 GFLOPS = 0.06% FLOPs, in_features=4096, out_features=1024, bias=False)
+                (lora_dropout): ModuleDict(
+                  0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+                  (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs
+                  (default): Linear(131.07 K = 0.96% Params, 536.87 MMACs = 0% MACs, 1.07 GFLOPS = 0% FLOPs, in_features=4096, out_features=32, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs
+                  (default): Linear(32.77 K = 0.24% Params, 134.22 MMACs = 0% MACs, 268.44 MFLOPS = 0% FLOPs, in_features=32, out_features=1024, bias=False)
+                )
+                (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+                (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+              )
+              (o_proj): Linear(0 = 0% Params, 68.72 GMACs = 0.24% MACs, 137.44 GFLOPS = 0.24% FLOPs, in_features=4096, out_features=4096, bias=False)
+            )
+            (mlp): MistralMLP(
+              0 = 0% Params, 721.55 GMACs = 2.52% MACs, 1.44 TFLOPS = 2.52% FLOPs
+              (gate_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (up_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=4096, out_features=14336, bias=False)
+              (down_proj): Linear(0 = 0% Params, 240.52 GMACs = 0.84% MACs, 481.04 GFLOPS = 0.84% FLOPs, in_features=14336, out_features=4096, bias=False)
+              (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 58.72 MFLOPS = 0% FLOPs)
+            )
+            (input_layernorm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+            (post_attention_layernorm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+          )
+        )
+        (norm): MistralRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4096,), eps=1e-05)
+        (rotary_emb): MistralRotaryEmbedding(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      )
+      (score): Linear(0 = 0% Params, 335.54 MMACs = 0% MACs, 671.09 MFLOPS = 0% FLOPs, in_features=4096, out_features=20, bias=False)
+    )
+  )
+)
+---------------------------------------------------------------------------------------------------
+
+
+***************************************************************************************************
+*************************************single-block-test*********************************************
+***************************************************************************************************gemma-2-27b | 46 layers
+batch size 8 | seq_len 512
+cuda:1 NVIDIA RTX A6000
+gemma-2-27b | batch size 8 | seq_len 512 | layers 46
+torch.Size([1, 512, 128]) torch.float32
+torch.Size([1, 512, 128]) torch.float32
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  122.88 K
+fwd MACs:                                                               2.34 TMACs
+fwd FLOPs:                                                              4.67 TFLOPS
+fwd+bwd MACs:                                                           7.01 TMACs
+fwd+bwd FLOPs:                                                          14.02 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+Gemma2DecoderLayer(
+  122.88 K = 100% Params, 2.34 TMACs = 100% MACs, 4.67 TFLOPS = 100% FLOPs
+  (self_attn): Gemma2Attention(
+    122.88 K = 100% Params, 249.61 GMACs = 10.68% MACs, 499.29 GFLOPS = 10.68% FLOPs
+    (q_proj): lora.Linear(
+      69.63 K = 56.67% Params, 77.59 GMACs = 3.32% MACs, 155.19 GFLOPS = 3.32% FLOPs
+      (base_layer): Linear(0 = 0% Params, 77.31 GMACs = 3.31% MACs, 154.62 GFLOPS = 3.31% FLOPs, in_features=4608, out_features=4096, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        36.86 K = 30% Params, 150.99 MMACs = 0.01% MACs, 301.99 MFLOPS = 0.01% FLOPs
+        (default): Linear(36.86 K = 30% Params, 150.99 MMACs = 0.01% MACs, 301.99 MFLOPS = 0.01% FLOPs, in_features=4608, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        32.77 K = 26.67% Params, 134.22 MMACs = 0.01% MACs, 268.44 MFLOPS = 0.01% FLOPs
+        (default): Linear(32.77 K = 26.67% Params, 134.22 MMACs = 0.01% MACs, 268.44 MFLOPS = 0.01% FLOPs, in_features=8, out_features=4096, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (k_proj): Linear(0 = 0% Params, 38.65 GMACs = 1.65% MACs, 77.31 GFLOPS = 1.65% FLOPs, in_features=4608, out_features=2048, bias=False)
+    (v_proj): lora.Linear(
+      53.25 K = 43.33% Params, 38.87 GMACs = 1.66% MACs, 77.75 GFLOPS = 1.66% FLOPs
+      (base_layer): Linear(0 = 0% Params, 38.65 GMACs = 1.65% MACs, 77.31 GFLOPS = 1.65% FLOPs, in_features=4608, out_features=2048, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        36.86 K = 30% Params, 150.99 MMACs = 0.01% MACs, 301.99 MFLOPS = 0.01% FLOPs
+        (default): Linear(36.86 K = 30% Params, 150.99 MMACs = 0.01% MACs, 301.99 MFLOPS = 0.01% FLOPs, in_features=4608, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        16.38 K = 13.33% Params, 67.11 MMACs = 0% MACs, 134.22 MFLOPS = 0% FLOPs
+        (default): Linear(16.38 K = 13.33% Params, 67.11 MMACs = 0% MACs, 134.22 MFLOPS = 0% FLOPs, in_features=8, out_features=2048, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (o_proj): Linear(0 = 0% Params, 77.31 GMACs = 3.31% MACs, 154.62 GFLOPS = 3.31% FLOPs, in_features=4096, out_features=4608, bias=False)
+  )
+  (mlp): Gemma2MLP(
+    0 = 0% Params, 2.09 TMACs = 89.32% MACs, 4.17 TFLOPS = 89.32% FLOPs
+    (gate_proj): Linear(0 = 0% Params, 695.78 GMACs = 29.77% MACs, 1.39 TFLOPS = 29.77% FLOPs, in_features=4608, out_features=36864, bias=False)
+    (up_proj): Linear(0 = 0% Params, 695.78 GMACs = 29.77% MACs, 1.39 TFLOPS = 29.77% FLOPs, in_features=4608, out_features=36864, bias=False)
+    (down_proj): Linear(0 = 0% Params, 695.78 GMACs = 29.77% MACs, 1.39 TFLOPS = 29.77% FLOPs, in_features=36864, out_features=4608, bias=False)
+    (act_fn): PytorchGELUTanh(0 = 0% Params, 0 MACs = 0% MACs, 150.99 MFLOPS = 0% FLOPs)
+  )
+  (input_layernorm): Gemma2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4608,), eps=1e-06)
+  (post_attention_layernorm): Gemma2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4608,), eps=1e-06)
+  (pre_feedforward_layernorm): Gemma2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4608,), eps=1e-06)
+  (post_feedforward_layernorm): Gemma2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (4608,), eps=1e-06)
+)
+---------------------------------------------------------------------------------------------------
+Yi-1.5-34B | 60 layers
+batch size 8 | seq_len 512
+cuda:1 NVIDIA RTX A6000
+Yi-1.5-34B | batch size 8 | seq_len 512 | layers 60
+torch.Size([1, 512, 128]) torch.float32
+torch.Size([1, 512, 128]) torch.float32
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  180.22 K
+fwd MACs:                                                               2.29 TMACs
+fwd FLOPs:                                                              4.57 TFLOPS
+fwd+bwd MACs:                                                           6.86 TMACs
+fwd+bwd FLOPs:                                                          13.71 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+LlamaDecoderLayer(
+  180.22 K = 100% Params, 2.29 TMACs = 100% MACs, 4.57 TFLOPS = 100% FLOPs
+  (self_attn): LlamaAttention(
+    180.22 K = 100% Params, 481.77 GMACs = 21.08% MACs, 963.55 GFLOPS = 21.08% FLOPs
+    (q_proj): lora.Linear(
+      114.69 K = 63.64% Params, 210.92 GMACs = 9.23% MACs, 421.85 GFLOPS = 9.23% FLOPs
+      (base_layer): Linear(0 = 0% Params, 210.45 GMACs = 9.21% MACs, 420.91 GFLOPS = 9.21% FLOPs, in_features=7168, out_features=7168, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=7168, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=8, out_features=7168, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (k_proj): Linear(0 = 0% Params, 30.06 GMACs = 1.32% MACs, 60.13 GFLOPS = 1.32% FLOPs, in_features=7168, out_features=1024, bias=False)
+    (v_proj): lora.Linear(
+      65.54 K = 36.36% Params, 30.33 GMACs = 1.33% MACs, 60.67 GFLOPS = 1.33% FLOPs
+      (base_layer): Linear(0 = 0% Params, 30.06 GMACs = 1.32% MACs, 60.13 GFLOPS = 1.32% FLOPs, in_features=7168, out_features=1024, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=7168, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        8.19 K = 4.55% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs
+        (default): Linear(8.19 K = 4.55% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs, in_features=8, out_features=1024, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (o_proj): Linear(0 = 0% Params, 210.45 GMACs = 9.21% MACs, 420.91 GFLOPS = 9.21% FLOPs, in_features=7168, out_features=7168, bias=False)
+  )
+  (mlp): LlamaMLP(
+    0 = 0% Params, 1.8 TMACs = 78.92% MACs, 3.61 TFLOPS = 78.92% FLOPs
+    (gate_proj): Linear(0 = 0% Params, 601.3 GMACs = 26.31% MACs, 1.2 TFLOPS = 26.31% FLOPs, in_features=7168, out_features=20480, bias=False)
+    (up_proj): Linear(0 = 0% Params, 601.3 GMACs = 26.31% MACs, 1.2 TFLOPS = 26.31% FLOPs, in_features=7168, out_features=20480, bias=False)
+    (down_proj): Linear(0 = 0% Params, 601.3 GMACs = 26.31% MACs, 1.2 TFLOPS = 26.31% FLOPs, in_features=20480, out_features=7168, bias=False)
+    (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 83.89 MFLOPS = 0% FLOPs)
+  )
+  (input_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (7168,), eps=1e-06)
+  (post_attention_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (7168,), eps=1e-06)
+)
+---------------------------------------------------------------------------------------------------
+deepseek-coder-33b-instruct | 62 layers
+batch size 8 | seq_len 512
+cuda:1 NVIDIA RTX A6000
+deepseek-coder-33b-instruct | batch size 8 | seq_len 512 | layers 62
+torch.Size([1, 512, 128]) torch.float32
+torch.Size([1, 512, 128]) torch.float32
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  180.22 K
+fwd MACs:                                                               2.17 TMACs
+fwd FLOPs:                                                              4.35 TFLOPS
+fwd+bwd MACs:                                                           6.52 TMACs
+fwd+bwd FLOPs:                                                          13.04 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+LlamaDecoderLayer(
+  180.22 K = 100% Params, 2.17 TMACs = 100% MACs, 4.35 TFLOPS = 100% FLOPs
+  (self_attn): LlamaAttention(
+    180.22 K = 100% Params, 481.77 GMACs = 22.17% MACs, 963.55 GFLOPS = 22.17% FLOPs
+    (q_proj): lora.Linear(
+      114.69 K = 63.64% Params, 210.92 GMACs = 9.71% MACs, 421.85 GFLOPS = 9.71% FLOPs
+      (base_layer): Linear(0 = 0% Params, 210.45 GMACs = 9.69% MACs, 420.91 GFLOPS = 9.69% FLOPs, in_features=7168, out_features=7168, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=7168, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=8, out_features=7168, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (k_proj): Linear(0 = 0% Params, 30.06 GMACs = 1.38% MACs, 60.13 GFLOPS = 1.38% FLOPs, in_features=7168, out_features=1024, bias=False)
+    (v_proj): lora.Linear(
+      65.54 K = 36.36% Params, 30.33 GMACs = 1.4% MACs, 60.67 GFLOPS = 1.4% FLOPs
+      (base_layer): Linear(0 = 0% Params, 30.06 GMACs = 1.38% MACs, 60.13 GFLOPS = 1.38% FLOPs, in_features=7168, out_features=1024, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs
+        (default): Linear(57.34 K = 31.82% Params, 234.88 MMACs = 0.01% MACs, 469.76 MFLOPS = 0.01% FLOPs, in_features=7168, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        8.19 K = 4.55% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs
+        (default): Linear(8.19 K = 4.55% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs, in_features=8, out_features=1024, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (o_proj): Linear(0 = 0% Params, 210.45 GMACs = 9.69% MACs, 420.91 GFLOPS = 9.69% FLOPs, in_features=7168, out_features=7168, bias=False)
+  )
+  (mlp): LlamaMLP(
+    0 = 0% Params, 1.69 TMACs = 77.83% MACs, 3.38 TFLOPS = 77.83% FLOPs
+    (gate_proj): Linear(0 = 0% Params, 563.71 GMACs = 25.94% MACs, 1.13 TFLOPS = 25.94% FLOPs, in_features=7168, out_features=19200, bias=False)
+    (up_proj): Linear(0 = 0% Params, 563.71 GMACs = 25.94% MACs, 1.13 TFLOPS = 25.94% FLOPs, in_features=7168, out_features=19200, bias=False)
+    (down_proj): Linear(0 = 0% Params, 563.71 GMACs = 25.94% MACs, 1.13 TFLOPS = 25.94% FLOPs, in_features=19200, out_features=7168, bias=False)
+    (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 78.64 MFLOPS = 0% FLOPs)
+  )
+  (input_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (7168,), eps=1e-06)
+  (post_attention_layernorm): LlamaRMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (7168,), eps=1e-06)
+)
+---------------------------------------------------------------------------------------------------
+QwQ-32B | 64 layers
+batch size 8 | seq_len 512
+cuda:1 NVIDIA RTX A6000
+QwQ-32B | batch size 8 | seq_len 512 | layers 64
+torch.Size([1, 512, 128]) torch.float32
+torch.Size([1, 512, 128]) torch.float32
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  131.07 K
+fwd MACs:                                                               2 TMACs 
+fwd FLOPs:                                                              4 TFLOPS
+fwd+bwd MACs:                                                           5.99 TMACs
+fwd+bwd FLOPs:                                                          11.99 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+Qwen2DecoderLayer(
+  131.07 K = 100% Params, 2 TMACs = 100% MACs, 4 TFLOPS = 100% FLOPs
+  (self_attn): Qwen2Attention(
+    131.07 K = 100% Params, 258.23 GMACs = 12.93% MACs, 516.47 GFLOPS = 12.93% FLOPs
+    (q_proj): lora.Linear(
+      81.92 K = 62.5% Params, 107.71 GMACs = 5.39% MACs, 215.42 GFLOPS = 5.39% FLOPs
+      (base_layer): Linear(0 = 0% Params, 107.37 GMACs = 5.37% MACs, 214.75 GFLOPS = 5.37% FLOPs, in_features=5120, out_features=5120, bias=True)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs
+        (default): Linear(40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs, in_features=5120, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs
+        (default): Linear(40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs, in_features=8, out_features=5120, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (k_proj): Linear(0 = 0% Params, 21.47 GMACs = 1.07% MACs, 42.95 GFLOPS = 1.07% FLOPs, in_features=5120, out_features=1024, bias=True)
+    (v_proj): lora.Linear(
+      49.15 K = 37.5% Params, 21.68 GMACs = 1.09% MACs, 43.35 GFLOPS = 1.09% FLOPs
+      (base_layer): Linear(0 = 0% Params, 21.47 GMACs = 1.07% MACs, 42.95 GFLOPS = 1.07% FLOPs, in_features=5120, out_features=1024, bias=True)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs
+        (default): Linear(40.96 K = 31.25% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs, in_features=5120, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        8.19 K = 6.25% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs
+        (default): Linear(8.19 K = 6.25% Params, 33.55 MMACs = 0% MACs, 67.11 MFLOPS = 0% FLOPs, in_features=8, out_features=1024, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (o_proj): Linear(0 = 0% Params, 107.37 GMACs = 5.37% MACs, 214.75 GFLOPS = 5.37% FLOPs, in_features=5120, out_features=5120, bias=False)
+  )
+  (mlp): Qwen2MLP(
+    0 = 0% Params, 1.74 TMACs = 87.07% MACs, 3.48 TFLOPS = 87.07% FLOPs
+    (gate_proj): Linear(0 = 0% Params, 579.82 GMACs = 29.02% MACs, 1.16 TFLOPS = 29.02% FLOPs, in_features=5120, out_features=27648, bias=False)
+    (up_proj): Linear(0 = 0% Params, 579.82 GMACs = 29.02% MACs, 1.16 TFLOPS = 29.02% FLOPs, in_features=5120, out_features=27648, bias=False)
+    (down_proj): Linear(0 = 0% Params, 579.82 GMACs = 29.02% MACs, 1.16 TFLOPS = 29.02% FLOPs, in_features=27648, out_features=5120, bias=False)
+    (act_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 113.25 MFLOPS = 0% FLOPs)
+  )
+  (input_layernorm): Qwen2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (5120,), eps=1e-05)
+  (post_attention_layernorm): Qwen2RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (5120,), eps=1e-05)
+)
+---------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------
+phi-4 | 40 layers
+batch size 8 | seq_len 512
+cuda:1 NVIDIA RTX A6000
+phi-4 | batch size 8 | seq_len 512 | layers 40
+torch.Size([1, 512, 128]) torch.float32
+torch.Size([1, 512, 128]) torch.float32
+
+------------------------------------- Calculate Flops Results -------------------------------------
+Notations:
+number of parameters (Params), number of multiply-accumulate operations(MACs),
+number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),
+fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),
+default model backpropagation takes 2.00 times as much computation as forward propagation.
+
+Total Training Params:                                                  81.92 K 
+fwd MACs:                                                               1.4 TMACs
+fwd FLOPs:                                                              2.79 TFLOPS
+fwd+bwd MACs:                                                           4.19 TMACs
+fwd+bwd FLOPs:                                                          8.38 TFLOPS
+
+-------------------------------- Detailed Calculated FLOPs Results --------------------------------
+Each module caculated is listed after its name in the following order: 
+params, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs
+
+Note: 1. A module can have torch.nn.module or torch.nn.functional to compute logits (e.g. CrossEntropyLoss). 
+ They are not counted as submodules in calflops and not to be printed out. However they make up the difference between a parent's MACs and the sum of its submodules'.
+2. Number of floating-point operations is a theoretical estimation, thus FLOPS computed using that could be larger than the maximum system throughput.
+
+Phi3DecoderLayer(
+  81.92 K = 100% Params, 1.4 TMACs = 100% MACs, 2.79 TFLOPS = 100% FLOPs
+  (self_attn): Phi3Attention(
+    81.92 K = 100% Params, 268.77 GMACs = 19.25% MACs, 537.54 GFLOPS = 19.25% FLOPs
+    (o_proj): lora.Linear(
+      81.92 K = 100% Params, 107.71 GMACs = 7.71% MACs, 215.42 GFLOPS = 7.71% FLOPs
+      (base_layer): Linear(0 = 0% Params, 107.37 GMACs = 7.69% MACs, 214.75 GFLOPS = 7.69% FLOPs, in_features=5120, out_features=5120, bias=False)
+      (lora_dropout): ModuleDict(
+        0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs
+        (default): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.05, inplace=False)
+      )
+      (lora_A): ModuleDict(
+        40.96 K = 50% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs
+        (default): Linear(40.96 K = 50% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs, in_features=5120, out_features=8, bias=False)
+      )
+      (lora_B): ModuleDict(
+        40.96 K = 50% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs
+        (default): Linear(40.96 K = 50% Params, 167.77 MMACs = 0.01% MACs, 335.54 MFLOPS = 0.01% FLOPs, in_features=8, out_features=5120, bias=False)
+      )
+      (lora_embedding_A): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_embedding_B): ParameterDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+      (lora_magnitude_vector): ModuleDict(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs)
+    )
+    (qkv_proj): Linear(0 = 0% Params, 161.06 GMACs = 11.54% MACs, 322.12 GFLOPS = 11.54% FLOPs, in_features=5120, out_features=7680, bias=False)
+  )
+  (mlp): Phi3MLP(
+    0 = 0% Params, 1.13 TMACs = 80.75% MACs, 2.25 TFLOPS = 80.75% FLOPs
+    (gate_up_proj): Linear(0 = 0% Params, 751.62 GMACs = 53.83% MACs, 1.5 TFLOPS = 53.83% FLOPs, in_features=5120, out_features=35840, bias=False)
+    (down_proj): Linear(0 = 0% Params, 375.81 GMACs = 26.92% MACs, 751.62 GFLOPS = 26.92% FLOPs, in_features=17920, out_features=5120, bias=False)
+    (activation_fn): SiLU(0 = 0% Params, 0 MACs = 0% MACs, 73.4 MFLOPS = 0% FLOPs)
+  )
+  (input_layernorm): Phi3RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (5120,), eps=1e-05)
+  (post_attention_layernorm): Phi3RMSNorm(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, (5120,), eps=1e-05)
+  (resid_attn_dropout): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.0, inplace=False)
+  (resid_mlp_dropout): Dropout(0 = 0% Params, 0 MACs = 0% MACs, 0 FLOPS = 0% FLOPs, p=0.0, inplace=False)
+)
+---------------------------------------------------------------------------------------------------
