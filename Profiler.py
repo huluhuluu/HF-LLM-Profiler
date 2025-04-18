@@ -117,11 +117,20 @@ class Profiler(object):
         pass
 
     @abstractmethod
-    def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_time_flag = True,
+    def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_flag: str = 'time',
                         skip_round: int = 100, test_round : int = 500):
         '''
             Profile the forward or backward pass of the model.
             This is a placeholder function and should be implemented in the future.
+
+            args:
+                bs: batch size
+                seq_len: sequence length
+                device: device to run the model on
+                fwd_flag: True for forward pass, False for backward pass
+                profile_time_flag: 'time' for profiling time, 'memory' for profiling memory
+                skip_round: number of rounds to skip for profiling
+                test_round: number of rounds to test for profiling
         '''
         pass
     
@@ -312,6 +321,20 @@ class ModelProfiler(Profiler):
             print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
             print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
             print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+
+class EmbeddingProfiler(Profiler):
+    '''
+        This class is used to estimate the total GPU memory, runtime, and FLOPs 
+        for the embedding model. 
+    '''
+    pass
+
+class FFNProfiler(Profiler):
+    '''
+        This class is used to estimate the total GPU memory, runtime, and FLOPs 
+        for the model's FFN(at the last layers of the model).
+    '''
+    pass
 
 def test():
     '''
