@@ -1,6 +1,6 @@
 import time
 import torch
-from calflops import calculate_flops
+from flops_counter import calculate_flops
 from accelerate import init_empty_weights
 from transformers import AutoConfig, AutoModel
 
@@ -18,8 +18,9 @@ class Profiler(object):
         This is a base class for the profiler.
     '''
     from abc import ABC, abstractmethod
-    def __init__(self, model_id_or_path: str):
+    def __init__(self, model_id_or_path: str, verbose: bool = False):
         self.model_id_or_path = model_id_or_path 
+        self.verbose = verbose
         self.model_id = self.get_model_id(model_id_or_path)
         # get config and empty model
         self.config = AutoConfig.from_pretrained(model_id_or_path)
@@ -80,8 +81,9 @@ class Profiler(object):
         actual_total_params = sum(p.numel() for p in model.parameters())
         actual_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         
-        print(f'Trainable params(actual|meta): {actual_trainable_params / 1e9:.2f}B|{meta_trainable_params / 1e9:.2f}B')
-        print(f'Total params(actual|meta): {actual_total_params / 1e9:.2f}B|{meta_total_params / 1e9:.2f}B')
+        if cls.verbose:
+            print(f'Trainable params(actual|meta): {actual_trainable_params / 1e9:.2f}B|{meta_trainable_params / 1e9:.2f}B')
+            print(f'Total params(actual|meta): {actual_total_params / 1e9:.2f}B|{meta_total_params / 1e9:.2f}B')
         return actual_trainable_params, meta_trainable_params, actual_total_params, meta_total_params
      
     def mask(self, mask_):
@@ -100,21 +102,21 @@ class Profiler(object):
         '''
             Get the empty model part needed from the whole model(self.model).
         '''
-        pass
+        ...
     
     @abstractmethod
     def init_empty_model(self, device = 'cpu'):
         '''
             Initialize the empty model we got with metedata form.
         '''
-        pass
+        ...
 
     @abstractmethod
     def gen_input(self, bs: int = 8, seq_len: int = 512, device = 'cpu'):
         '''
             Generate the input for the model.
         '''
-        pass
+        ...
 
     @abstractmethod
     def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_flag: str = 'time',
@@ -132,15 +134,15 @@ class Profiler(object):
                 skip_round: number of rounds to skip for profiling
                 test_round: number of rounds to test for profiling
         '''
-        pass
+        ...
     
 class ModelProfiler(Profiler):
     '''
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
         for the full model by **scaling up the results from one block**. 
     '''
-    def __init__(self, model_id_or_path: str):
-        super().__init__(model_id_or_path)
+    def __init__(self, model_id_or_path: str, verbose: bool = False):
+        super().__init__(model_id_or_path, verbose)
         self.trans, self.embeds, self.rotate = self.get_model(self.model) # get the model from the config
 
     def get_model(self, model):
@@ -157,7 +159,7 @@ class ModelProfiler(Profiler):
     def init_empty_model(self, device = 'cpu'):
         '''
             Initialize the empty model we got with metedata form.
-            Attention:
+            Note:
                 To test gpu memory usage, get_calflops() and profile_forward() or profile_backward()
                 should not be called in the same time.
         '''
@@ -189,6 +191,16 @@ class ModelProfiler(Profiler):
     def get_calflops(self, bs: int = 8, seq_len: int = 512, device = 'cpu'):
         '''
             Get the calflops of the model by scaling up the results from one block. 
+
+            args:
+                bs: batch size
+                seq_len: sequence length
+                device: device to run the model on
+
+            return:
+                fwd_flops: forward flops
+                bwd_flops: backward flops
+                param: params
         '''
         # gen input for the model transformer
         self.init_empty_model(device = device)
@@ -235,14 +247,17 @@ class ModelProfiler(Profiler):
             res = res * layer
             return f'{res:.2f} {res_units}'
         
-        print('\n-------------------------------')
-        print(f'{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_}')
+        if self.verbose:
+            print(f'{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_}')
         
+        # scale up the result by the number of layers
         fwd_flops, bwd_flops, param = scale_up(fwd_trans_flops, self.layer), \
                                       scale_up(bwd_trans_flops, self.layer), \
                                       scale_up(trans_params, self.layer)
-
-        print(f'forward flops: {fwd_flops} | backward flops: {bwd_flops} | params: {param}')
+        
+        if self.verbose:
+            print(f'forward flops: {fwd_flops} | backward flops: {bwd_flops} | params: {param}')
+        return fwd_flops, bwd_flops, param
 
     def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_flag: str = 'time',
                         skip_round: int = 100, test_round : int = 500):
@@ -254,10 +269,16 @@ class ModelProfiler(Profiler):
                 bs: batch size
                 seq_len: sequence length
                 device: device to run the model on
-                fwd_flag: True for forward pass, False for backward pass
+                fwd_flag: True for forward pass, False for forward + backward pass
                 profile_time_flag: 'time' for profiling time, 'memory' for profiling memory
                 skip_round: number of rounds to skip for profiling
                 test_round: number of rounds to test for profiling
+
+            return:
+                (end_time - begin_time) / test_round: average time for single attention block
+                (model_memory - begin_memory) * self.layer / 1024**3: model memory
+                (end_memory - model_memory) * self.layer / 1024**3: activation memory
+                (end_memory - begin_memory) * self.layer / 1024**3: total memory
         '''
         # gen input for the model transformer
         # for profiler gpu memory set model init device to 'cpu'
@@ -268,6 +289,9 @@ class ModelProfiler(Profiler):
             'attention_mask': attention_mask.detach().to(device),
             'hidden_states': hidden_state.detach().to(device) if fwd_flag else hidden_state.detach().to(device).requires_grad_(True)
         }
+        # set torch device
+        torch.cuda.set_device(device)
+        # set params
         begin_time, end_time = 0, 0
         begin_memory, model_memory, end_memory = torch.cuda.max_memory_allocated(device), 0, 0
         
@@ -313,14 +337,18 @@ class ModelProfiler(Profiler):
                 torch.autograd.backward(tensor[0] if type(tensor) is tuple else tensor, grad_tensors=torch.ones_like(tensor[0] if type(tensor) is tuple else tensor))
 
         # print the result
-        print('\n-------------------------------')
-        print(f'{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}')
-        if 1:# profile_flag == 'time':
-            print(f'time: {(end_time - begin_time) / test_round:.5f} s')
-        # else:
-            print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
-            print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
-            print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+        if self.verbose:
+            print(f'{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}')
+            if profile_flag == 'time':
+                print(f'block runing time: {(end_time - begin_time) / test_round:.5f} s')
+            else:
+                print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+                print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
+                print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+        return (end_time - begin_time) / test_round, \
+                (model_memory - begin_memory) * self.layer / 1024**3, \
+                (end_memory - model_memory) * self.layer / 1024**3, \
+                (end_memory - begin_memory) * self.layer / 1024**3
 
 class EmbeddingProfiler(Profiler):
     '''
@@ -343,38 +371,6 @@ def test():
     path = '/docker/data/HUGGINGFACE/Llama-3.1-70B-Instruct' # Qwen2.5-3B Falcon3-10B-Base
     profiler = Profiler(path)
     print(profiler.model)
-    # profiler = ModelProfiler(path)
-    # print('------------------------------')
-    # print(profiler.config)
-    # print(profiler.config.num_hidden_layers)
-    # print(profiler.config.hidden_size)
-    # print(profiler.config.torch_dtype)
-    # print(profiler.model_id)
-    # print(profiler.layer)
-    # print(profiler.hidden_size)
-    # print(profiler.model, end='\n------------------\n')
-    # print(profiler.trans, end='\n------------------\n')
-    # print(profiler.embeds, end='\n------------------\n')
-    # print(profiler.rotate, end='\n------------------\n')
-    # print(profiler.count_param(profiler.model))
-    # print('------------before init---------------')
-    # for name, param in profiler.trans.named_parameters():
-    #     print(f"Parameter: {name} | dtype: {param.dtype} | device: {param.device}")
-    # print(profiler.count_param(profiler.trans), end='\n------------------\n')
-    # print(profiler.count_param(profiler.embeds), end='\n------------------\n')
-    # print(profiler.count_param(profiler.rotate), end='\n------------------\n')
-
-    # profiler.init_empty_model('cuda:0')
-    
-    # print('------------after init---------------')
-    # for name, param in profiler.trans.named_parameters():
-    #     print(f"Parameter: {name} | dtype: {param.dtype} | device: {param.device}")
-    # print(profiler.count_param(profiler.trans), end='\n------------------\n')
-    # print(profiler.count_param(profiler.embeds), end='\n------------------\n')
-    # print(profiler.count_param(profiler.rotate), end='\n------------------\n')
-    # profiler.get_calflops(8, 512, 'cuda:0')
-    # profiler.profile(8, 512, 'cuda:4', skip_round=50, test_round=100, fwd_flag=False, profile_flag='memory')
-    # TODO: test getattr recursive .
 
 if __name__ == '__main__':
     test()
