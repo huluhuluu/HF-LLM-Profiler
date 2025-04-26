@@ -340,8 +340,10 @@ def test():
     '''
         Test the ProfileModel class's method.
     '''
-    path = '/data/HUGGINGFACE/Falcon3-10B-Base' # Qwen2.5-3B Falcon3-10B-Base
-    profiler = ModelProfiler(path)
+    path = '/docker/data/HUGGINGFACE/Llama-3.1-70B-Instruct' # Qwen2.5-3B Falcon3-10B-Base
+    profiler = Profiler(path)
+    print(profiler.model)
+    # profiler = ModelProfiler(path)
     # print('------------------------------')
     # print(profiler.config)
     # print(profiler.config.num_hidden_layers)
@@ -371,7 +373,7 @@ def test():
     # print(profiler.count_param(profiler.embeds), end='\n------------------\n')
     # print(profiler.count_param(profiler.rotate), end='\n------------------\n')
     # profiler.get_calflops(8, 512, 'cuda:0')
-    profiler.profile(8, 512, 'cuda:1', skip_round=100, test_round=500, fwd_flag=False, profile_flag='time')
+    # profiler.profile(8, 512, 'cuda:4', skip_round=50, test_round=100, fwd_flag=False, profile_flag='memory')
     # TODO: test getattr recursive .
 
 if __name__ == '__main__':
