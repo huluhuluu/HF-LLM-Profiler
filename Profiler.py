@@ -1,7 +1,9 @@
 import time
 import torch
+import multiprocessing
 from flops_counter import calculate_flops
 from accelerate import init_empty_weights
+from peft import LoraConfig, get_peft_model
 from transformers import AutoConfig, AutoModel
 
 # global variables
@@ -18,12 +20,14 @@ class Profiler(object):
         This is a base class for the profiler.
     '''
     from abc import ABC, abstractmethod
-    def __init__(self, model_id_or_path: str, verbose: bool = False):
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None):
         self.model_id_or_path = model_id_or_path 
         self.verbose = verbose
         self.model_id = self.get_model_id(model_id_or_path)
         # get config and empty model
         self.config = AutoConfig.from_pretrained(model_id_or_path)
+        if dtype is not None:
+            self.config.torch_dtype = dtype
         with init_empty_weights():
             self.model = AutoModel.from_config(self.config)
         # get layers, hidden size and tensor dtype info
@@ -141,21 +145,48 @@ class ModelProfiler(Profiler):
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
         for the full model by **scaling up the results from one block**. 
     '''
-    def __init__(self, model_id_or_path: str, verbose: bool = False):
-        super().__init__(model_id_or_path, verbose)
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None):
+        super().__init__(model_id_or_path, verbose=verbose, dtype=dtype)
         self.trans, self.embeds, self.rotate = self.get_model(self.model) # get the model from the config
 
     def get_model(self, model):
         '''
             Get the empty model from the config.
             Get the transformer/embeds/rotate layer from the empty model.
+            Args:
+                model: the empty model from the config.
+            Return:
+                transformer layer, embedding layer, rotation layer
         '''
         global MODEL_EMBED_KEY, MODEL_ROTATE_KEY, MODEL_TRANS_KEY
         # get only a singel layer of the transformer
         return  self.get_attr(MODEL_TRANS_KEY, model, self.model_id)[1], \
                 self.get_attr(MODEL_EMBED_KEY, model, self.model_id), \
                 self.get_attr(MODEL_ROTATE_KEY, model, self.model_id)
-   
+
+    def  init_lora_model(self, rank:int = 8, lora_alpha: int = 16, lora_dropout: float = 0.05, target_modules: list = None):
+        '''
+            Initialize the model with lora method.
+            Args:
+                rank: the rank of the lora
+                lora_alpha: the alpha of the lora
+                lora_dropout: the dropout of the lora
+                lora_method: the method of the lora, default is 'lora'
+        '''
+        # if target_modules is None: use the default target modules
+        lora_config = LoraConfig(
+            r=rank,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias='none',
+            target_modules=target_modules if target_modules is not None else ['q_proj', 'v_proj']
+        )
+
+        try:
+            self.trans = get_peft_model(self.trans, lora_config)
+        except:
+            raise ValueError(f"target_modules {target_modules} errors, please check the model struct:\n {self.trans}")
+
     def init_empty_model(self, device = 'cpu'):
         '''
             Initialize the empty model we got with metedata form.
@@ -368,9 +399,27 @@ def test():
     '''
         Test the ProfileModel class's method.
     '''
-    path = '/docker/data/HUGGINGFACE/Llama-3.1-70B-Instruct' # Qwen2.5-3B Falcon3-10B-Base
-    profiler = Profiler(path)
-    print(profiler.model)
+    bs, seq, device, rank, lora_alpha, lora_dropout = 8, 512, 'cuda:0', 8, 16, 0.05
+    path = '/data/HF_MODELS/Qwen2.5-3B' # Qwen2.5-3B Falcon3-10B-Base
+    profiler = ModelProfiler(path, dtype=torch.float32, verbose=True)
+    profiler.init_lora_model(
+        rank=rank, 
+        lora_alpha=lora_alpha, 
+        lora_dropout=lora_dropout, 
+        target_modules=['q_proj', 'v_proj']
+    )
+    # print(profiler.trans)
+    print(f'------------------{profiler.model_id} Profile memory------------------')
+    # Test forward memory
+    torch.cuda.empty_cache()
+    thread = multiprocessing.Process(target=profiler.profile, args=(bs, seq, device, True, 'memory', 50, 100))
+    thread.start()
+    thread.join()
+    # Test backward memory
+    torch.cuda.empty_cache()
+    thread = multiprocessing.Process(target=profiler.profile, args=(bs, seq, device, False, 'memory', 50, 100))
+    thread.start()
+    thread.join()
 
 if __name__ == '__main__':
     test()
