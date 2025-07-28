@@ -3,7 +3,7 @@ import torch
 import multiprocessing
 from flops_counter import calculate_flops
 from accelerate import init_empty_weights
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, PeftConfig, get_peft_model
 from transformers import AutoConfig, AutoModel
 
 # global variables
@@ -74,6 +74,13 @@ class Profiler(object):
         return  self.get_attr(MODEL_LAYER_KEY, config, model_id), \
                 self.get_attr(MODEL_HIDEEN_SIZE_KEY, config, model_id), \
                 self.get_attr(MODEL_DTYPE_KEY, config, model_id)
+
+    @abstractmethod
+    def peftModel(self, config: PeftConfig = None):
+        '''
+            Get the peft model from the config.
+        '''
+        ... 
 
     @classmethod
     def count_param(cls, model):
@@ -163,29 +170,6 @@ class ModelProfiler(Profiler):
         return  self.get_attr(MODEL_TRANS_KEY, model, self.model_id)[1], \
                 self.get_attr(MODEL_EMBED_KEY, model, self.model_id), \
                 self.get_attr(MODEL_ROTATE_KEY, model, self.model_id)
-
-    def  init_lora_model(self, rank:int = 8, lora_alpha: int = 16, lora_dropout: float = 0.05, target_modules: list = None):
-        '''
-            Initialize the model with lora method.
-            Args:
-                rank: the rank of the lora
-                lora_alpha: the alpha of the lora
-                lora_dropout: the dropout of the lora
-                lora_method: the method of the lora, default is 'lora'
-        '''
-        # if target_modules is None: use the default target modules
-        lora_config = LoraConfig(
-            r=rank,
-            lora_alpha=lora_alpha,
-            lora_dropout=lora_dropout,
-            bias='none',
-            target_modules=target_modules if target_modules is not None else ['q_proj', 'v_proj']
-        )
-
-        try:
-            self.trans = get_peft_model(self.trans, lora_config)
-        except:
-            raise ValueError(f"target_modules {target_modules} errors, please check the model struct:\n {self.trans}")
 
     def init_empty_model(self, device = 'cpu'):
         '''
@@ -381,6 +365,21 @@ class ModelProfiler(Profiler):
                 (end_memory - model_memory) * self.layer / 1024**3, \
                 (end_memory - begin_memory) * self.layer / 1024**3
 
+    def peftModel(self, config: PeftConfig = None):
+        if config is None:
+            rank, lora_alpha, lora_dropout = 8, 16, 0.05
+            config = LoraConfig(
+                r=rank,
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+                bias='none',
+                target_modules=['q_proj', 'v_proj']
+            )
+        try:
+            self.trans = get_peft_model(self.trans, config)
+        except:
+            raise ValueError(f"Get peft model failed, please check the config:\n {config}")
+    
 class EmbeddingProfiler(Profiler):
     '''
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
@@ -402,12 +401,7 @@ def test():
     bs, seq, device, rank, lora_alpha, lora_dropout = 8, 512, 'cuda:0', 8, 16, 0.05
     path = '/data/HF_MODELS/Qwen2.5-3B' # Qwen2.5-3B Falcon3-10B-Base
     profiler = ModelProfiler(path, dtype=torch.float32, verbose=True)
-    profiler.init_lora_model(
-        rank=rank, 
-        lora_alpha=lora_alpha, 
-        lora_dropout=lora_dropout, 
-        target_modules=['q_proj', 'v_proj']
-    )
+    profiler.peftModel()
     # print(profiler.trans)
     print(f'------------------{profiler.model_id} Profile memory------------------')
     # Test forward memory
