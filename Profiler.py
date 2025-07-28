@@ -20,7 +20,7 @@ class Profiler(object):
         This is a base class for the profiler.
     '''
     from abc import ABC, abstractmethod
-    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None):
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None, device: str = 'cpu'):
         self.model_id_or_path = model_id_or_path 
         self.verbose = verbose
         self.model_id = self.get_model_id(model_id_or_path)
@@ -32,6 +32,7 @@ class Profiler(object):
             self.model = AutoModel.from_config(self.config)
         # get layers, hidden size and tensor dtype info
         self.layer, self.hidden_size, self.dtype_ = self.get_model_info(self.config, self.model_id) # transformer block layers and hidden size
+        self.backend = "npu" if 'npu' in device else "cuda"
 
     def get_model_id(self, model_id_or_path: str = None):
         '''
@@ -96,7 +97,7 @@ class Profiler(object):
             print(f'Trainable params(actual|meta): {actual_trainable_params / 1e9:.2f}B|{meta_trainable_params / 1e9:.2f}B')
             print(f'Total params(actual|meta): {actual_total_params / 1e9:.2f}B|{meta_total_params / 1e9:.2f}B')
         return actual_trainable_params, meta_trainable_params, actual_total_params, meta_total_params
-     
+    
     def mask(self, mask_):
         '''
             Generate the attention mask for the model.
@@ -107,7 +108,13 @@ class Profiler(object):
             mask_ = mask_[:, None, None, :]
         mask_ = (1.0 - mask_.to(self.dtype_)) * torch.finfo(self.dtype_).min
         return mask_
-    
+
+    @classmethod
+    def to_device(cls, obj, device):
+        if 'npu' in device:
+            return obj.npu()
+        return obj.to(device)
+
     @abstractmethod
     def get_model(self, model):
         '''
@@ -152,8 +159,8 @@ class ModelProfiler(Profiler):
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
         for the full model by **scaling up the results from one block**. 
     '''
-    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None):
-        super().__init__(model_id_or_path, verbose=verbose, dtype=dtype)
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype:torch.dtype = None, device: str = 'cpu'):
+        super().__init__(model_id_or_path, verbose=verbose, dtype=dtype, device=device)
         self.trans, self.embeds, self.rotate = self.get_model(self.model) # get the model from the config
 
     def get_model(self, model):
@@ -192,11 +199,11 @@ class ModelProfiler(Profiler):
         input_shape, attention_shape  = [bs, seq_len, self.hidden_size], [bs, seq_len]
 
         # generate the input
-        input_ids = torch.ones(input_ids_shape, dtype=torch.int64).to(device)
-        position_ids = torch.arange(0, input_shape[1], dtype=torch.int64).unsqueeze(0).to(device)
+        input_ids = self.__class__.to_device(torch.ones(input_ids_shape, dtype=torch.int64), device)
+        position_ids = self.__class__.to_device(torch.arange(0, input_shape[1], dtype=torch.int64).unsqueeze(0), device)
         attention_mask = torch.ones(attention_shape, dtype=torch.int64)
         # mask the attention mask
-        attention_mask = self.mask(attention_mask).to(device)
+        attention_mask = self.__class__.to_device(self.mask(attention_mask), device)
         
         # generate the input(hidden state, embeds)
         hidden_state = self.embeds(input_ids)        
@@ -300,19 +307,19 @@ class ModelProfiler(Profiler):
         self.init_empty_model(device = 'cpu')
         input_embeds, attention_mask, hidden_state = self.gen_input(bs, seq_len, 'cpu')
         kwargs = {
-            'position_embeddings': (input_embeds[0].detach().to(device), input_embeds[1].detach().to(device)),
-            'attention_mask': attention_mask.detach().to(device),
-            'hidden_states': hidden_state.detach().to(device) if fwd_flag else hidden_state.detach().to(device).requires_grad_(True)
+            'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
+            'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
+            'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
         }
         # set torch device
-        torch.cuda.set_device(device)
+        getattr(torch, self.backend).set_device(device)
         # set params
         begin_time, end_time = 0, 0
-        begin_memory, model_memory, end_memory = torch.cuda.max_memory_allocated(device), 0, 0
+        begin_memory, model_memory, end_memory = getattr(torch, self.backend).max_memory_allocated(device), 0, 0
         
         # get the model's memory usage
-        self.trans.to(device)
-        model_memory = torch.cuda.max_memory_allocated(device)
+        self.__class__.to_device(self.trans, device)
+        model_memory = getattr(torch, self.backend).max_memory_allocated(device)
 
         if fwd_flag:
             # forward pass
@@ -322,12 +329,12 @@ class ModelProfiler(Profiler):
                         begin_time = time.time()
                     elif _ == skip_round + test_round:
                         end_time = time.time()
-                        end_memory = torch.cuda.max_memory_allocated(device)
+                        end_memory = getattr(torch, self.backend).max_memory_allocated(device)
                     if profile_flag == 'time':
                         kwargs = {
-                            'position_embeddings': (input_embeds[0].detach().to(device), input_embeds[1].detach().to(device)),
-                            'attention_mask': attention_mask.detach().to(device),
-                            'hidden_states': hidden_state.detach().to(device) if fwd_flag else hidden_state.detach().to(device).requires_grad_(True)
+                            'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
+                            'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
+                            'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
                         }
                     # forward
                     tensor = self.trans(**kwargs)
@@ -338,12 +345,12 @@ class ModelProfiler(Profiler):
                     begin_time = time.time()
                 elif _ == skip_round + test_round:
                     end_time = time.time()
-                    end_memory = torch.cuda.max_memory_allocated(device)
+                    end_memory = getattr(torch, self.backend).max_memory_allocated(device)
                 if profile_flag == 'time':
                     kwargs = {
-                        'position_embeddings': (input_embeds[0].detach().to(device), input_embeds[1].detach().to(device)),
-                        'attention_mask': attention_mask.detach().to(device),
-                        'hidden_states': hidden_state.detach().to(device) if fwd_flag else hidden_state.detach().to(device).requires_grad_(True)
+                        'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
+                        'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
+                        'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
                     }
                 self.trans.zero_grad()
                 # forward
@@ -353,7 +360,7 @@ class ModelProfiler(Profiler):
 
         # print the result
         if self.verbose:
-            print(f'{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}')
+            print(f"{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}")
             if profile_flag == 'time':
                 print(f'block runing time: {(end_time - begin_time) / test_round:.5f} s')
             else:
@@ -398,19 +405,19 @@ def test():
     '''
         Test the ProfileModel class's method.
     '''
-    bs, seq, device, rank, lora_alpha, lora_dropout = 8, 512, 'cuda:0', 8, 16, 0.05
-    path = '/data/HF_MODELS/Qwen2.5-3B' # Qwen2.5-3B Falcon3-10B-Base
-    profiler = ModelProfiler(path, dtype=torch.float32, verbose=True)
+    bs, seq, device, rank, lora_alpha, lora_dropout = 8, 512, 'npu', 8, 16, 0.05
+    path = '/home/zjh/code/HF-LLM-Profiler/model/Qwen2.5-3B' # Qwen2.5-3B Falcon3-10B-Base
+    profiler = ModelProfiler(path, dtype=torch.float32, verbose=True, device=device)
     profiler.peftModel()
     # print(profiler.trans)
     print(f'------------------{profiler.model_id} Profile memory------------------')
     # Test forward memory
-    torch.cuda.empty_cache()
+    getattr(torch, profiler.backend).empty_cache()
     thread = multiprocessing.Process(target=profiler.profile, args=(bs, seq, device, True, 'memory', 50, 100))
     thread.start()
     thread.join()
     # Test backward memory
-    torch.cuda.empty_cache()
+    getattr(torch, profiler.backend).empty_cache()
     thread = multiprocessing.Process(target=profiler.profile, args=(bs, seq, device, False, 'memory', 50, 100))
     thread.start()
     thread.join()
