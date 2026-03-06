@@ -376,8 +376,8 @@ DeepSeek-V3*     16.99        670.10         0.05     875.35       6.16         
 生成的图表保存在bench目录下：
 - `bench/fwd_bwd_time_comparison.png`: 前向传播和反向传播的预估时间比较
 ![fwd_bwd_time](/bench/fwd_bwd_time_comparison.png)
-- `bench/fwd_bwd_memory_comparison.png`: 反向传播占用的显存与计算量图
-![fwd_bwd_memory](/bench/fwd_bwd_memory_comparison.png)
+- `bench/training_flops_vs_memory.png`: 反向传播占用的显存与计算量图
+![fwd_bwd_memory](/bench/training_flops_vs_memory.png)
 
 ## 🏗️ 项目结构
 

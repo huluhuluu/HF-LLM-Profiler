@@ -375,7 +375,7 @@ DeepSeek-V3*     16.99        670.10         0.05     875.35       6.16         
 Generated charts are saved in bench directory:
 - `bench/fwd_bwd_time_comparison.png`: Forward and backward pass estimated time comparison
 ![fwd_bwd_time](/bench/fwd_bwd_time_comparison.png)
-- `bench/fwd_bwd_memory_comparison.png`: Backward pass memory and compute graph
+- `bench/training_flops_vs_memory.png`: Backward pass memory and compute graph
 ![fwd_bwd_memory](/bench/training_flops_vs_memory.png)
 
 ## 🏗️ Project Structure
