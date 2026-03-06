@@ -4,58 +4,58 @@
 [![PyTorch](https://img.shields.io/badge/pytorch-2.0+-orange.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**English** | **[中文](README_CN.md)**
+**[English](README.md)** | **中文**
 
-> 🚀 **Want to know how much GPU memory, time, and FLOPs are needed to run Hugging Face LLMs? Analyze with one click!**
+> 🚀 **想知道运行 Hugging Face LLM 需要多少 GPU 内存、时间和计算 FLOPs？一键分析！**
 > 
-> 📊 **Want to understand model architecture? Print it directly!**
+> 📊 **想了解模型结构？直接打印！**
 
-## ✨ Core Features
+## ✨ 核心特性
 
-| Feature | Description |
+| 特性 | 说明 |
 |------|------|
-| 🎯 **Smart Estimation** | Estimate full model resource requirements by scaling from a single Transformer Block |
-| 📈 **Multi-dimensional Analysis** | Support GPU memory, execution time, FLOPs three analysis dimensions |
-| 🔧 **Flexible Configuration** | Support custom batch size, sequence length, device type |
-| 🤗 **Wide Compatibility** | Support mainstream LLMs from Hugging Face model hub |
-| 🔌 **PEFT Support** | Built-in LoRA fine-tuning configuration support |
-| ⚡ **Multi-device** | Support CUDA and NPU (Huawei Atlas) devices |
+| 🎯 **智能估算** | 通过单个 Transformer Block 缩放估算全模型资源需求 |
+| 📈 **多维度分析** | 支持 GPU 内存、执行时间、FLOPs 三种分析维度 |
+| 🔧 **灵活配置** | 支持自定义 batch size、序列长度、设备类型 |
+| 🤗 **广泛兼容** | 支持 Hugging Face 模型库中的主流 LLM |
+| 🔌 **PEFT 支持** | 内置 LoRA 微调配置支持 |
+| ⚡ **多设备** | 支持 CUDA 和 NPU（华为 Atlas）设备 |
 
-## ⚠️ Important Notes
+## ⚠️ 注意事项
 
-| Note | Description |
+| 注意事项 | 说明 |
 |----------|------|
-| 📊 **Estimation Error** | Based on single block scaling, may have some error, especially for MoE models |
-| 🏗️ **Architecture Limitations** | Some models may not work due to special architectures, some models may need manual model_config addition |
-| 🔥 **Warm-up Required** | Need warm-up and multiple test rounds for stable results, each profile time and memory should be started through a process, and cannot be tested continuously in one function, to avoid memory error caused by model already on target device |
+| 📊 **估算误差** | 基于单块缩放，可能存在一定误差，尤其是 MoE 模型 |
+| 🏗️ **架构限制** | 部分模型可能因架构特殊而不适用， 部分模型可能需要手动添加model_config |
+| 🔥 **预热需求** | 需要预热和多轮测试以获得稳定结果，每次profile时间和显存时通过进程启动，并且不能在一个函数中连续测试，避免模型已经在目标设备导致显存误差 |
 
-## 📦 Installation
+## 📦 安装
 
 ```bash
-# Option 1: Direct install
+# 方式一：直接安装
 pip install -r requirements.txt
 
-# Option 2: Conda virtual environment (recommended)
+# 方式二：Conda 虚拟环境（推荐）
 conda create -n llm-profiler python=3.10 -y
 conda activate llm-profiler
 pip install -r requirements.txt
 ```
 
-**Main Dependencies**: `torch` | `transformers` | `peft` | `calflops`
+**主要依赖**：`torch` | `transformers` | `peft` | `calflops`
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### 1. Get Model Config
+### 1. 获取模型配置
 
 ```python
-# Option 1: Use HF Hub model ID directly (requires network)
+# 方式一：直接使用 HF Hub 模型 ID（需要网络）
 model_id = "Qwen/Qwen2.5-0.5B"
 
-# Option 2: Use hfd tool to download config (offline)
+# 方式二：使用 hfd 工具下载配置（离线可用）
 # ./hfd.sh <model_id> --include '^config.json$'
 ```
 
-### 2. Print Model Structure
+### 2. 打印模型结构
 
 ```python
 from Profiler import Profiler
@@ -65,7 +65,7 @@ print(profiler.model)
 print(f"Layers: {profiler.layer}, Hidden Size: {profiler.hidden_size}")
 ```
 
-### 3. Analyze FLOPs
+### 3. 分析 FLOPs
 
 ```python
 from Profiler import ModelProfiler
@@ -73,33 +73,33 @@ from Profiler import ModelProfiler
 profiler = ModelProfiler('Qwen2.5-0.5B', verbose=True)
 fwd_flops, bwd_flops, params = profiler.get_calflops(bs=8, seq_len=512, device='cuda:0')
 
-# Output example:
+# 输出示例：
 # GPT-2 | batch size 8 | seq_len 512 | layers 12 | torch.float32
 # forward flops: 22.56 GFLOPS | backward flops: 67.68 GFLOPS | params: 124.44 M
 ```
 
-### 4. Analyze Memory Usage
+### 4. 分析内存使用
 
 ```python
 profiler = ModelProfiler('Qwen2.5-0.5B', verbose=True)
 
-# Forward pass memory
+# 前向传播内存
 profiler.profile(bs=8, seq_len=512, device='cuda:0', 
                  fwd_flag=True, profile_flag='memory',
                  skip_round=100, test_round=500)
 
-# Forward+Backward pass memory
+# 前向+反向传播内存
 profiler.profile(bs=8, seq_len=512, device='cuda:0',
                  fwd_flag=False, profile_flag='memory',
                  skip_round=100, test_round=500)
 ```
 
-### 5. Analyze Execution Time
+### 5. 分析执行时间
 
 ```python
 profiler = ModelProfiler('Qwen2.5-0.5B', verbose=True)
 
-# Single Block execution time
+# 单 Block 执行时间
 fwd_time, model_mem, act_mem, total_mem = profiler.profile(
     bs=8, seq_len=512, device='cuda:0',
     fwd_flag=True, profile_flag='time',
@@ -108,30 +108,30 @@ fwd_time, model_mem, act_mem, total_mem = profiler.profile(
 print(f"Single block forward time: {fwd_time:.5f}s")
 ```
 
-## 📊 Parameter Description
+## 📊 参数说明
 
-| Parameter | Type | Description | Default |
+| 参数 | 类型 | 说明 | 默认值 |
 |------|------|------|--------|
-| `model_id_or_path` | str | HF Hub model ID or local path | Required |
+| `model_id_or_path` | str | HF Hub 模型 ID 或本地路径 | 必填 |
 | `bs` | int | Batch Size | 8 |
-| `seq_len` | int | Sequence length | 512 |
-| `device` | str | Running device | `cuda:0` |
-| `fwd_flag` | bool | `True`=forward only, `False`=forward+backward | `True` |
-| `profile_flag` | str | `time`=time, `memory`=memory | `time` |
-| `skip_round` | int | Warm-up rounds (not counted in statistics) | 100 |
-| `test_round` | int | Test rounds | 500 |
-| `dtype` | torch.dtype | Data type | Model default |
+| `seq_len` | int | 序列长度 | 512 |
+| `device` | str | 运行设备 | `cuda:0` |
+| `fwd_flag` | bool | `True`=仅前向，`False`=前向+反向 | `True` |
+| `profile_flag` | str | `time`=时间，`memory`=内存 | `time` |
+| `skip_round` | int | 预热轮次（不计入统计） | 100 |
+| `test_round` | int | 测试轮次 | 500 |
+| `dtype` | torch.dtype | 数据类型 | 模型默认 |
 
 
-## 🔧 Advanced Usage
+## 🔧 高级用法
 
-### LoRA Fine-tuning Support
+### LoRA 微调支持
 
 ```python
 from Profiler import ModelProfiler
 from peft import LoraConfig
 
-# Create LoRA config
+# 创建 LoRA 配置
 lora_config = LoraConfig(
     r=8,
     lora_alpha=16,
@@ -143,39 +143,39 @@ lora_config = LoraConfig(
 profiler = ModelProfiler('meta-llama/Llama-2-7b-hf', verbose=True)
 profiler.peftModel(lora_config)
 
-# Analyze fine-tuned model
+# 分析微调后的模型
 profiler.get_calflops(bs=4, seq_len=256, device='cuda:0')
 ```
 
-### Specify Data Type
+### 指定数据类型
 
 ```python
 import torch
 
-# Use FP16
+# 使用 FP16
 profiler = ModelProfiler('Qwen2.5-0.5B', dtype=torch.float16, verbose=True)
 
-# Use BF16 (requires Ampere+ GPU)
+# 使用 BF16 (需要 Ampere+ GPU)
 profiler = ModelProfiler('Qwen2.5-0.5B', dtype=torch.bfloat16, verbose=True)
 ```
 
-### NPU Device Support (Huawei Atlas)
+### NPU 设备支持（华为 Atlas）
 
 ```python
 profiler = ModelProfiler('Qwen2.5-0.5B', device='npu:0', verbose=True)
 profiler.profile(bs=8, seq_len=512, device='npu:0', ...)
 ```
 
-## Run Test
-### Configure Parameters
-Modify test parameters in test function in test.py:
+## 运行测试
+### 配置参数
+在test.py中的test函数中修改测试参数：
 ```python
-# Corresponding model parameters, running gpu, and whether to test LoRA fine-tuning
+# 对应模型参数 运行gpu 以及是否测试LoRA微调
 path, device, test_lora = '/workspace/code/HF-LLM-Profiler/models/Qwen2.5-0.5B', "cuda:5", True
 ```
-### Run Test
+### 运行测试
 ```bash
-# Activate virtual environment and run single model test
+# 启动虚拟环境 并且 运行单模型测试
 > python test.py
 ------------------Qwen2.5-0.5B------------------
 Qwen2Model(
@@ -220,20 +220,20 @@ Qwen2.5-0.5B | batch size 8 | seq_len 512 | layers 24 | torch.bfloat16 | backwar
 model runing time: 0.16165 s
 ```
 
-## 🧪 Run Benchmark
-### Configuration
-Configure benchmark parameters in Configuration at the beginning of benchmark.py:
+## 🧪 运行 Benchmark
+### 配置
+配置benchmark参数，在benchmark.py代码开头的Configuration中进行修改：
 ```python
 # benchmark.py
 # ============================================================
 # Configuration
 # ============================================================
 
-# Test device configuration, support CUDA and Atlas NPU
+# 测试设备配置，支持 CUDA 和 Atlas NPU
 # Device configuration
 DEVICE = "cuda:5"
 
-# Test data batch size and sequence length, and warm-up rounds and test rounds
+# 测试的数据批大小和序列长度 以及 预热轮次和测试轮次
 # Test configuration
 CONFIG = {
     "batch_size": 8,
@@ -242,7 +242,7 @@ CONFIG = {
     "test_round": 10,
 }
 
-# LoRA fine-tuning test parameters
+# LoRA微调的测试参数
 # LoRA configuration for fine-tuning tests
 LORA_CONFIG = {
     "r": 8,                    # LoRA rank
@@ -253,19 +253,19 @@ LORA_CONFIG = {
 }
 
 # HFD downloader path
-HFD_SCRIPT = "/data/HUGGINGFACE/hfd.sh" # huggingface-cli tool for downloading model config
+HFD_SCRIPT = "/data/HUGGINGFACE/hfd.sh" # huggingface-cli 工具，用于下载模型配置
 
 # Model save directory
-MODEL_DIR = "/workspace/code/HF-LLM-Profiler/models"  # Model storage directory
+MODEL_DIR = "/workspace/code/HF-LLM-Profiler/models"  # 模型存放目录
 
 # Output file
-OUTPUT_FILE = "bench/measured_data.json"  # benchmark result output file
+OUTPUT_FILE = "bench/measured_data.json"  # benchmark结果输出文件
 
 # Hugging Face credentials (for gated models)
-HF_USERNAME = "huluhuluu"   # Hugging Face username
-HF_TOKEN = "hf_ababababababababababababab" # Hugging Face access token
+HF_USERNAME = "huluhuluu"   # Hugging Face 用户名
+HF_TOKEN = "hf_ababababababababababababab" # Hugging Face 访问令牌
 
-# Models below can be freely added
+# 下面模型可以自由添加
 # ============================================================
 # Test Model List
 # Ranging from ~0.5B to 100B+ parameters
@@ -297,16 +297,16 @@ MODELS = [
 
 ```
 
-### Run
+### 运行
 ```bash
-# Run multi-model benchmark
+# 运行多模型 benchmark
 python benchmark.py
 
-# Generate visualization charts
+# 生成可视化图表
 python generate_charts.py
 ```
 
-### Benchmark Results
+### bench结果
 ```bash
 ============================================================================================================================================
 ✅ Benchmark Complete! Results saved to: bench/measured_data.json
@@ -368,53 +368,53 @@ DeepSeek-V3*     16.99        670.10         0.05     875.35       6.16         
   Time and memory results are estimated for the full model based on single block measurements.
   LoRA trainable is a litter bigger than truth and flops/times/memory is a little smaller than truth.
 ```
-### Visualization Results
-Generated charts are saved in bench directory:
-- `bench/fwd_bwd_time_comparison.png`: Forward and backward pass estimated time comparison
+### 可视化结果
+生成的图表保存在bench目录下：
+- `bench/fwd_bwd_time_comparison.png`: 前向传播和反向传播的预估时间比较
 ![fwd_bwd_time](/bench/fwd_bwd_time_comparison.png)
-- `bench/fwd_bwd_memory_comparison.png`: Backward pass memory and compute graph
-![fwd_bwd_memory](/bench/training_flops_vs_memory.png)
+- `bench/fwd_bwd_memory_comparison.png`: 反向传播占用的显存与计算量图
+![fwd_bwd_memory](/bench/fwd_bwd_memory_comparison.png)
 
-## 🏗️ Project Structure
+## 🏗️ 项目结构
 
 ```
 HF-LLM-Profiler/
-├── Profiler.py          # Core profiler implementation 
-├── model_config.py      # Model configuration definition
-├── flops_counter.py     # FLOPs calculation module
-├── test.py              # Test script
-├── benchmark.py         # Multi-model benchmark script
-├── plot_from_json.py    # Chart generation script
-├── requirements.txt     # Dependency list
-├── README.md            # Project documentation
-└── bench/   # Benchmark output directory
+├── Profiler.py          # 核心分析器实现 
+├── model_config.py      # 模型配置定义
+├── flops_counter.py     # FLOPs 计算模块
+├── test.py              # 测试脚本
+├── benchmark.py         # 多模型 benchmark 脚本
+├── plot_from_json.py    # 图表生成脚本
+├── requirements.txt     # 依赖列表
+├── README.md            # 项目文档
+└── bench/   # Benchmark 输出目录
 ```
 
-## ⚙️ Working Principle
+## ⚙️ 工作原理
 
-This tool adopts **single block scaling estimation** strategy:
+本工具采用**单块缩放估算**策略：
 
-1. **Load Config** - Load model config from HF Hub or local (without loading weights)
-2. **Build Empty Model** - Create model on meta device using `accelerate.init_empty_weights`
-3. **Extract Single Block** - Get a single Transformer Block
-4. **Actual Test** - Run this Block on target device
-5. **Scale Estimation** - Multiply results by number of layers to get full model estimation
+1. **加载配置** - 从 HF Hub 或本地加载模型配置（不加载权重）
+2. **构建空模型** - 使用 `accelerate.init_empty_weights` 创建 meta 设备上的模型
+3. **提取单块** - 获取单个 Transformer Block
+4. **实际测试** - 在目标设备上运行该 Block
+5. **缩放估算** - 将结果乘以层数得到全模型估算值
 
-Advantages of this method:
-- ✅ No need to download complete model weights
-- ✅ Fast test speed
-- ✅ Low memory usage
-- ✅ Applicable to models of any size
+这种方法的优势：
+- ✅ 无需下载完整模型权重
+- ✅ 测试速度快
+- ✅ 内存占用低
+- ✅ 适用于任意大小的模型
 
-## 🤝 Contributing
+## 🤝 贡献
 
-Issues and Pull Requests are welcome!
+欢迎提交 Issue 和 Pull Request！
 
 ## 📄 License
 
 MIT License
 
-## 🙏 Acknowledgments
+## 🙏 致谢
 
 - [Hugging Face Transformers](https://github.com/huggingface/transformers)
 - [calflops](https://github.com/MrYxJ/calculate-flops.pytorch)

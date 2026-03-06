@@ -10,7 +10,7 @@ from transformers import AutoConfig, AutoModel
 # used for different model's config
 MODEL_LAYER_KEY = {'default': 'num_hidden_layers'}
 MODEL_HIDEEN_SIZE_KEY = {'default': 'hidden_size'}
-MODEL_DTYPE_KEY = {'default': 'torch_dtype'}
+MODEL_DTYPE_KEY = {'default': 'dtype'}
 MODEL_EMBED_KEY = {'default': 'embed_tokens'}
 MODEL_ROTATE_KEY = {'default': 'rotary_emb'}
 MODEL_TRANS_KEY = {'default': 'layers'}
@@ -26,8 +26,9 @@ class Profiler(object):
         self.model_id = self.get_model_id(model_id_or_path)
         # get config and empty model
         self.config = AutoConfig.from_pretrained(model_id_or_path)
+        # Use new 'dtype' attribute instead of deprecated 'torch_dtype'
         if dtype is not None:
-            self.config.torch_dtype = dtype
+            self.config.dtype = dtype
         with init_empty_weights():
             self.model = AutoModel.from_config(self.config)
         # get layers, hidden size and tensor dtype info
@@ -138,7 +139,7 @@ class Profiler(object):
 
     @abstractmethod
     def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_flag: str = 'time',
-                        skip_round: int = 100, test_round : int = 500):
+                        skip_round: int = 10, test_round : int = 5, skip_init: bool = False, block_flag: bool = True):
         '''
             Profile the forward or backward pass of the model.
             This is a placeholder function and should be implemented in the future.
@@ -185,9 +186,30 @@ class ModelProfiler(Profiler):
                 To test gpu memory usage, get_calflops() and profile_forward() or profile_backward()
                 should not be called in the same time.
         '''
-        self.trans = self.trans.to_empty(device=device)
-        self.embeds = self.embeds.to_empty(device=device)
-        self.rotate = self.rotate.to_empty(device=device)
+        # Materialize meta tensors to actual tensors with physical memory
+        # to_empty() creates meta tensors without physical memory, which causes errors
+        # when trying to run actual computations (e.g., embedding lookup)
+        self.trans = self._materialize_module(self.trans, device)
+        self.embeds = self._materialize_module(self.embeds, device)
+        self.rotate = self._materialize_module(self.rotate, device)
+    
+    def _materialize_module(self, module, device):
+        '''
+            Materialize a module with meta tensors to actual tensors on CPU.
+            Uses to_empty() followed by reset_parameters() for proper initialization.
+        '''
+        # First move to target device (still meta), then to CPU with actual memory
+        module = module.to_empty(device=device)
+        
+        # Recursively reset parameters to allocate actual memory
+        def reset_module_params(mod):
+            for name, child in mod.named_children():
+                reset_module_params(child)
+            if hasattr(mod, 'reset_parameters'):
+                mod.reset_parameters()
+        
+        reset_module_params(module)
+        return module
     
     def gen_input(self, bs: int = 8, seq_len: int = 512, device = 'cpu'):
         '''
@@ -202,6 +224,11 @@ class ModelProfiler(Profiler):
         input_ids = self.__class__.to_device(torch.ones(input_ids_shape, dtype=torch.int64), device)
         position_ids = self.__class__.to_device(torch.arange(0, input_shape[1], dtype=torch.int64).unsqueeze(0), device)
         attention_mask = torch.ones(attention_shape, dtype=torch.int64)
+
+        # move embeds and rotate to target device (self.mask is a method, not a module)
+        self.embeds = self.__class__.to_device(self.embeds, device)
+        self.rotate = self.__class__.to_device(self.rotate, device)
+
         # mask the attention mask
         attention_mask = self.__class__.to_device(self.mask(attention_mask), device)
         
@@ -282,20 +309,21 @@ class ModelProfiler(Profiler):
         return fwd_flops, bwd_flops, param
 
     def profile(self, bs: int, seq_len: int, device = 'cpu', fwd_flag = True, profile_flag: str = 'time',
-                        skip_round: int = 100, test_round : int = 500):
+                        skip_round: int = 10, test_round : int = 5, skip_init: bool = False, 
+                        block_flag: bool = True):
         '''
             Profile the forward or backward pass of the model.
-            This is a placeholder function and should be implemented in the future.
 
             args:
                 bs: batch size
                 seq_len: sequence length
                 device: device to run the model on
                 fwd_flag: True for forward pass, False for forward + backward pass
-                profile_time_flag: 'time' for profiling time, 'memory' for profiling memory
+                profile_flag: 'time' for profiling time, 'memory' for profiling memory
                 skip_round: number of rounds to skip for profiling
                 test_round: number of rounds to test for profiling
-
+                skip_init: if True, skip model initialization (use when model already initialized, e.g., after LoRA)
+                block_flag: if True, profile only one block, else profile the whole model by scaling up the results from one block
             return:
                 (end_time - begin_time) / test_round: average time for single attention block
                 (model_memory - begin_memory) * self.layer / 1024**3: model memory
@@ -304,22 +332,42 @@ class ModelProfiler(Profiler):
         '''
         # gen input for the model transformer
         # for profiler gpu memory set model init device to 'cpu'
-        self.init_empty_model(device = 'cpu')
-        input_embeds, attention_mask, hidden_state = self.gen_input(bs, seq_len, 'cpu')
+        if not skip_init:
+            self.init_empty_model(device = 'cpu')
+        input_embeds, attention_mask, hidden_state = self.gen_input(bs, seq_len, 'cpu' if not skip_init else device)
+        
+        # Prepare kwargs
         kwargs = {
             'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
             'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
             'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
         }
+        
         # set torch device
         getattr(torch, self.backend).set_device(device)
         # set params
         begin_time, end_time = 0, 0
-        begin_memory, model_memory, end_memory = getattr(torch, self.backend).max_memory_allocated(device), 0, 0
         
-        # get the model's memory usage
-        self.__class__.to_device(self.trans, device)
-        model_memory = getattr(torch, self.backend).max_memory_allocated(device)
+        if skip_init:
+            # Model already on device, calculate model memory from parameters
+            # Reset peak memory stats first to get accurate activation measurement
+            getattr(torch, self.backend).reset_peak_memory_stats(device)
+            begin_memory = 0
+            
+            # Calculate model memory by summing parameter sizes
+            model_param_bytes = 0
+            for param in self.trans.parameters():
+                if param is not None:
+                    model_param_bytes += param.numel() * param.element_size()
+            # Convert to same units as max_memory_allocated (bytes)
+            model_memory = model_param_bytes
+        else:
+            begin_memory = getattr(torch, self.backend).max_memory_allocated(device)
+            # get the model's memory usage
+            self.__class__.to_device(self.trans, device)
+            model_memory = getattr(torch, self.backend).max_memory_allocated(device)
+        
+        end_memory = 0
 
         if fwd_flag:
             # forward pass
@@ -362,15 +410,23 @@ class ModelProfiler(Profiler):
         if self.verbose:
             print(f"{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}")
             if profile_flag == 'time':
-                print(f'block runing time: {(end_time - begin_time) / test_round:.5f} s')
+                if block_flag:
+                    print(f'block runing time: {(end_time - begin_time) / test_round:.5f} s')
+                else:
+                    print(f'model runing time: {(end_time - begin_time) / test_round * self.layer:.5f} s')
             else:
-                print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
-                print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
-                print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
-        return (end_time - begin_time) / test_round, \
-                (model_memory - begin_memory) * self.layer / 1024**3, \
-                (end_memory - model_memory) * self.layer / 1024**3, \
-                (end_memory - begin_memory) * self.layer / 1024**3
+                if block_flag:
+                    print(f'block model memory: {(model_memory - begin_memory) / 1024**3:.4f} GB')
+                    print(f'block activation memory: {(end_memory - model_memory) / 1024**3:.4f} GB')
+                    print(f'block total memory: {(end_memory - begin_memory) / 1024**3:.4f} GB')
+                else:
+                    print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+                    print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
+                    print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
+        return (end_time - begin_time) / test_round * (1 if block_flag else self.layer), \
+                (model_memory - begin_memory) * (1 if block_flag else self.layer) / 1024**3, \
+                (end_memory - model_memory) * (1 if block_flag else self.layer) / 1024**3, \
+                (end_memory - begin_memory) * (1 if block_flag else self.layer) / 1024**3
 
     def peftModel(self, config: PeftConfig = None):
         if config is None:
