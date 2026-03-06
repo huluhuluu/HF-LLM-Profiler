@@ -121,7 +121,10 @@ print(f"Single block forward time: {fwd_time:.5f}s")
 | `skip_round` | int | Warm-up rounds (not counted in statistics) | 100 |
 | `test_round` | int | Test rounds | 500 |
 | `dtype` | torch.dtype | Data type | Model default |
-
+| `skip_init` | bool | Whether to skip model initialization (model already on target device) | `False` |
+| `block_flag` | bool | Whether the return value is a single Block or the full model | `True` |
+| `config` | PeftConfig | PEFT compatible fine-tuning parameters | `None |
+| `verbose` | bool | Whether to print detailed information | `False` |
 
 ## 🔧 Advanced Usage
 
@@ -419,3 +422,4 @@ MIT License
 - [Hugging Face Transformers](https://github.com/huggingface/transformers)
 - [calflops](https://github.com/MrYxJ/calculate-flops.pytorch)
 - [PEFT](https://github.com/huggingface/peft)
+- [IFLOW](https://github.com/iflow-ai)

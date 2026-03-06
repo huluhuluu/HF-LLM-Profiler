@@ -121,6 +121,10 @@ print(f"Single block forward time: {fwd_time:.5f}s")
 | `skip_round` | int | 预热轮次（不计入统计） | 100 |
 | `test_round` | int | 测试轮次 | 500 |
 | `dtype` | torch.dtype | 数据类型 | 模型默认 |
+| `skip_init` | bool | 是否跳过模型初始化(模型已在目标设备上) | `False` |
+| `block_flag` | bool | 返回值是单个Block / 完整模型 | `True` |
+| `config` | PeftConfig | peft兼容的微调参数 | `None` |
+| `verbose` | bool | 是否打印详细信息 | `False` |
 
 
 ## 🔧 高级用法
@@ -419,3 +423,4 @@ MIT License
 - [Hugging Face Transformers](https://github.com/huggingface/transformers)
 - [calflops](https://github.com/MrYxJ/calculate-flops.pytorch)
 - [PEFT](https://github.com/huggingface/peft)
+- [IFLOW](https://github.com/iflow-ai)
