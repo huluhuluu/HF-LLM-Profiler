@@ -589,6 +589,20 @@ def run_benchmark():
     bs = CONFIG["batch_size"]
     seq_len = CONFIG["seq_len"]
     
+    # Detect device info
+    is_npu = 'npu' in DEVICE.lower()
+    if is_npu:
+        try:
+            import torch_npu
+            npu_available = torch.npu.is_available()
+            npu_device = torch.npu.get_device_name(int(DEVICE.split(":")[1])) if npu_available else "N/A"
+        except ImportError:
+            npu_available = False
+            npu_device = "N/A (torch_npu not installed)"
+    else:
+        npu_available = False
+        npu_device = "N/A"
+    
     results = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
@@ -596,6 +610,8 @@ def run_benchmark():
             "torch_version": torch.__version__,
             "cuda_available": torch.cuda.is_available(),
             "cuda_device": torch.cuda.get_device_name(int(DEVICE.split(":")[1])) if torch.cuda.is_available() else "N/A",
+            "npu_available": npu_available,
+            "npu_device": npu_device,
             "config": CONFIG,
         },
         "models": {}
@@ -609,6 +625,8 @@ def run_benchmark():
     print(f"PyTorch: {torch.__version__}")
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name(int(DEVICE.split(':')[1]))}")
+    elif npu_available:
+        print(f"NPU: {npu_device}")
     print(f"Batch Size: {bs}, Seq Len: {seq_len}")
     print()
     
@@ -846,9 +864,14 @@ def run_benchmark():
         with open(OUTPUT_FILE, "w") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         
-        # Clear GPU cache
+        # Clear GPU/NPU cache
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+        elif 'npu' in DEVICE.lower():
+            try:
+                torch.npu.empty_cache()
+            except:
+                pass
     
     # Print summary
     print(f"\n\n{'='*140}")
