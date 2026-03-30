@@ -102,11 +102,18 @@ class Profiler(object):
     def mask(self, mask_):
         '''
             Generate the attention mask for the model.
+            NPU FlashAttention supports: [B, N, Sq, Skv], [B, 1, Sq, Skv], [1, 1, Sq, Skv] and [Sq, Skv]
+            Generate [1, 1, Sq, Skv] shape for NPU compatibility.
         '''
-        if mask_.dim() == 3:
+        if mask_.dim() == 2:
+            # Input shape: [bs, seq_len]
+            # For NPU compatibility, use [1, 1, seq_len, seq_len] (broadcastable to all batches)
+            seq_len = mask_.shape[1]
+            # Create a causal mask or full mask of shape [seq_len, seq_len]
+            mask_2d = torch.ones((seq_len, seq_len), dtype=mask_.dtype)
+            mask_ = mask_2d.unsqueeze(0).unsqueeze(0)  # [1, 1, seq_len, seq_len]
+        elif mask_.dim() == 3:
             mask_ = mask_[:, None, :, :]
-        elif mask_.dim() == 2:
-            mask_ = mask_[:, None, None, :]
         mask_ = (1.0 - mask_.to(self.dtype_)) * torch.finfo(self.dtype_).min
         return mask_
 
@@ -330,6 +337,13 @@ class ModelProfiler(Profiler):
                 (end_memory - model_memory) * self.layer / 1024**3: activation memory
                 (end_memory - begin_memory) * self.layer / 1024**3: total memory
         '''
+        # Update backend based on device parameter
+        if 'cuda' in device:
+            self.backend = "cuda"
+        elif 'npu' in device:
+            self.backend = "npu"
+        else:
+            self.backend = "cpu"
         # gen input for the model transformer
         # for profiler gpu memory set model init device to 'cpu'
         if not skip_init:

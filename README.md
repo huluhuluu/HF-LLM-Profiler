@@ -43,6 +43,19 @@ pip install -r requirements.txt
 
 **Main Dependencies**: `torch` | `transformers` | `peft` | `calflops`
 
+- For Huawei Atlas NPU users, you need to install the corresponding version of `torch` and `torch_npu`, then install the remaining dependencies:
+  ```bash
+  pip install  -i  https://mirrors.ustc.edu.cn/pypi/simple peft transformers calflops
+  ```
+- For the hfd.sh tool, here's a quick download guide, [reference tutorial](https://hf-mirror.com/):
+  ```bash
+  wget https://hf-mirror.com/hfd/hfd.sh
+  echo 'export HF_ENDPOINT=https://hf-mirror.com'  >> ~/.bashrc # Modify according to your shell
+  source ~/.bashrc
+  # Install hfd dependencies
+  apt install git-lfs aria2 -y
+  ```
+
 ## 🚀 Quick Start
 
 ### 1. Get Model Config

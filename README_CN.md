@@ -43,6 +43,18 @@ pip install -r requirements.txt
 
 **主要依赖**：`torch` | `transformers` | `peft` | `calflops`
 
+- 特别的，对于华为 Atlas NPU 用户，需要安装对应版本的 `torch` 和 `torch_npu`，直接安装其余依赖包即可
+  ```bash
+  pip install  -i  https://mirrors.ustc.edu.cn/pypi/simple peft transformers calflops
+  ```
+- 对于后续的hfd.sh工具，给出简明的下载，[参考教程](https://hf-mirror.com/)
+  ```bash
+  wget https://hf-mirror.com/hfd/hfd.sh
+  echo 'export HF_ENDPOINT=https://hf-mirror.com'  >> ~/.bashrc # 根据使用shell修改
+  source ~/.bashrc
+  # 安装hfd依赖的工具
+  apt install git-lfs aria2 -y
+  ```
 ## 🚀 快速开始
 
 ### 1. 获取模型配置
