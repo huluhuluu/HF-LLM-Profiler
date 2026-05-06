@@ -1,19 +1,28 @@
 import time
 import torch
 import multiprocessing
-from flops_counter import calculate_flops
 from accelerate import init_empty_weights
-from peft import LoraConfig, PeftConfig, get_peft_model
 from transformers import AutoConfig, AutoModel
+from model_config import (
+    MODEL_LAYER_KEY,
+    MODEL_HIDEEN_SIZE_KEY,
+    MODEL_DTYPE_KEY,
+    MODEL_EMBED_KEY,
+    MODEL_ROTATE_KEY,
+    MODEL_TRANS_KEY,
+)
 
-# global variables
-# used for different model's config
-MODEL_LAYER_KEY = {'default': 'num_hidden_layers'}
-MODEL_HIDEEN_SIZE_KEY = {'default': 'hidden_size'}
-MODEL_DTYPE_KEY = {'default': 'dtype'}
-MODEL_EMBED_KEY = {'default': 'embed_tokens'}
-MODEL_ROTATE_KEY = {'default': 'rotary_emb'}
-MODEL_TRANS_KEY = {'default': 'layers'}
+try:
+    from flops_counter import calculate_flops
+except ModuleNotFoundError:
+    calculate_flops = None
+
+try:
+    from peft import LoraConfig, PeftConfig, get_peft_model
+except ModuleNotFoundError:
+    LoraConfig = None
+    PeftConfig = object
+    get_peft_model = None
 
 class Profiler(object):
     '''
@@ -25,15 +34,16 @@ class Profiler(object):
         self.verbose = verbose
         self.model_id = self.get_model_id(model_id_or_path)
         # get config and empty model
-        self.config = AutoConfig.from_pretrained(model_id_or_path)
+        self.config = AutoConfig.from_pretrained(model_id_or_path, trust_remote_code=True)
         # Use new 'dtype' attribute instead of deprecated 'torch_dtype'
         if dtype is not None:
             self.config.dtype = dtype
         with init_empty_weights():
-            self.model = AutoModel.from_config(self.config)
+            self.model = AutoModel.from_config(self.config, trust_remote_code=True)
+        self.model_type = getattr(self.config, 'model_type', self.model_id)
         # get layers, hidden size and tensor dtype info
-        self.layer, self.hidden_size, self.dtype_ = self.get_model_info(self.config, self.model_id) # transformer block layers and hidden size
-        self.backend = "npu" if 'npu' in device else "cuda"
+        self.layer, self.hidden_size, self.dtype_ = self.get_model_info(self.config, self.model_type)
+        self.backend = self._detect_backend(device)
 
     def get_model_id(self, model_id_or_path: str = None):
         '''
@@ -59,7 +69,11 @@ class Profiler(object):
             if class_ is None:
                 value = key_dict.get(model_id, key_dict['default'])
             else:
-                value = getattr(class_, key, None)
+                value = class_
+                for sub_key in key.split('.'):
+                    value = getattr(value, sub_key, None)
+                    if value is None:
+                        break
             if value is None:
                 raise ValueError(f"Model {model_id} Attr {key} | not supported, please check the model id or path.")
             return value
@@ -70,12 +84,93 @@ class Profiler(object):
         '''
             Get the number of hidden layers and hidden size and tensor_dtype of the model.
         '''
-        global MODEL_LAYER_KEY, MODEL_HIDEEN_SIZE_KEY, MODEL_DTYPE_KEY
-
         # get the number of hidden layers and hidden size from the config
         return  self.get_attr(MODEL_LAYER_KEY, config, model_id), \
                 self.get_attr(MODEL_HIDEEN_SIZE_KEY, config, model_id), \
                 self.get_attr(MODEL_DTYPE_KEY, config, model_id)
+
+    @staticmethod
+    def _detect_backend(device: str):
+        if 'cuda' in device:
+            return 'cuda'
+        if 'npu' in device:
+            return 'npu'
+        return 'cpu'
+
+    @classmethod
+    def _device_module(cls, device: str):
+        backend = cls._detect_backend(device)
+        if backend == 'cpu':
+            return None
+        return getattr(torch, backend, None)
+
+    @classmethod
+    def _set_device(cls, device: str):
+        module = cls._device_module(device)
+        if module is not None and hasattr(module, 'set_device'):
+            module.set_device(device)
+
+    @classmethod
+    def _synchronize(cls, device: str):
+        module = cls._device_module(device)
+        if module is not None and hasattr(module, 'synchronize'):
+            module.synchronize(device)
+
+    @classmethod
+    def _empty_cache(cls, device: str):
+        module = cls._device_module(device)
+        if module is not None and hasattr(module, 'empty_cache'):
+            module.empty_cache()
+
+    @classmethod
+    def _reset_peak_memory_stats(cls, device: str):
+        module = cls._device_module(device)
+        if module is not None and hasattr(module, 'reset_peak_memory_stats'):
+            module.reset_peak_memory_stats(device)
+
+    @classmethod
+    def _max_memory_allocated(cls, device: str):
+        module = cls._device_module(device)
+        if module is None or not hasattr(module, 'max_memory_allocated'):
+            return 0
+        return module.max_memory_allocated(device)
+
+    @classmethod
+    def _memory_allocated(cls, device: str):
+        module = cls._device_module(device)
+        if module is None or not hasattr(module, 'memory_allocated'):
+            return 0
+        return module.memory_allocated(device)
+
+    @staticmethod
+    def _parameter_memory_bytes(module):
+        return sum(param.numel() * param.element_size() for param in module.parameters() if param is not None)
+
+    @staticmethod
+    def _primary_tensor(output):
+        if torch.is_tensor(output):
+            return output
+        if isinstance(output, (tuple, list)) and output:
+            return Profiler._primary_tensor(output[0])
+        if isinstance(output, dict):
+            for value in output.values():
+                tensor = Profiler._primary_tensor(value)
+                if tensor is not None:
+                    return tensor
+        return None
+
+    @classmethod
+    def _detach_to_device(cls, value, device: str, requires_grad: bool = False):
+        if torch.is_tensor(value):
+            tensor = cls.to_device(value.detach(), device)
+            if requires_grad:
+                tensor = tensor.requires_grad_(True)
+            return tensor
+        if isinstance(value, tuple):
+            return tuple(cls._detach_to_device(item, device, requires_grad=False) for item in value)
+        if isinstance(value, list):
+            return [cls._detach_to_device(item, device, requires_grad=False) for item in value]
+        return value
 
     @abstractmethod
     def peftModel(self, config: PeftConfig = None):
@@ -119,9 +214,76 @@ class Profiler(object):
 
     @classmethod
     def to_device(cls, obj, device):
+        if device == 'cpu':
+            return obj.to(device)
         if 'npu' in device:
             return obj.npu()
         return obj.to(device)
+
+    def _materialize_module(self, module, device):
+        '''
+            Materialize a module with meta tensors to actual tensors on the target device.
+        '''
+        module = module.to_empty(device=device)
+
+        def reset_module_params(mod):
+            for _, child in mod.named_children():
+                reset_module_params(child)
+            if hasattr(mod, 'reset_parameters'):
+                mod.reset_parameters()
+
+        reset_module_params(module)
+        return module
+
+    def _profile_module(self, module, input_factory, device='cpu', fwd_flag=True, profile_flag='time',
+                        skip_round: int = 10, test_round: int = 5, scale_factor: int = 1):
+        self.backend = self._detect_backend(device)
+        self._set_device(device)
+        self._empty_cache(device)
+        self._synchronize(device)
+        self._reset_peak_memory_stats(device)
+
+        begin_time, end_time = 0.0, 0.0
+        begin_memory = self._memory_allocated(device)
+        self.__class__.to_device(module, device)
+        self._synchronize(device)
+        model_memory = self._memory_allocated(device)
+        self._reset_peak_memory_stats(device)
+        end_memory = model_memory
+
+        total_round = test_round + skip_round * 2
+        for idx in range(total_round):
+            if idx == skip_round:
+                self._synchronize(device)
+                begin_time = time.time()
+
+            args, kwargs = input_factory(device, fwd_flag)
+            if hasattr(module, 'zero_grad'):
+                module.zero_grad(set_to_none=True)
+
+            if fwd_flag:
+                with torch.no_grad():
+                    output = module(*args, **kwargs)
+            else:
+                output = module(*args, **kwargs)
+                loss = self._primary_tensor(output)
+                if loss is None:
+                    raise ValueError('Profiler output does not contain a tensor for backward.')
+                torch.autograd.backward(loss, grad_tensors=torch.ones_like(loss))
+
+            self._synchronize(device)
+            if idx == skip_round + test_round - 1:
+                end_time = time.time()
+                end_memory = self._max_memory_allocated(device)
+
+        model_delta = max(model_memory - begin_memory, 0)
+        act_delta = max(end_memory - model_memory, 0)
+        total_delta = max(end_memory - begin_memory, 0)
+
+        return (end_time - begin_time) / test_round * scale_factor, \
+               model_delta * scale_factor / 1024**3, \
+               act_delta * scale_factor / 1024**3, \
+               total_delta * scale_factor / 1024**3
 
     @abstractmethod
     def get_model(self, model):
@@ -180,11 +342,10 @@ class ModelProfiler(Profiler):
             Return:
                 transformer layer, embedding layer, rotation layer
         '''
-        global MODEL_EMBED_KEY, MODEL_ROTATE_KEY, MODEL_TRANS_KEY
-        # get only a singel layer of the transformer
-        return  self.get_attr(MODEL_TRANS_KEY, model, self.model_id)[1], \
-                self.get_attr(MODEL_EMBED_KEY, model, self.model_id), \
-                self.get_attr(MODEL_ROTATE_KEY, model, self.model_id)
+        # get only a single layer of the transformer
+        return  self.get_attr(MODEL_TRANS_KEY, model, self.model_type)[0], \
+                self.get_attr(MODEL_EMBED_KEY, model, self.model_type), \
+                self.get_attr(MODEL_ROTATE_KEY, model, self.model_type)
 
     def init_empty_model(self, device = 'cpu'):
         '''
@@ -200,24 +361,6 @@ class ModelProfiler(Profiler):
         self.embeds = self._materialize_module(self.embeds, device)
         self.rotate = self._materialize_module(self.rotate, device)
     
-    def _materialize_module(self, module, device):
-        '''
-            Materialize a module with meta tensors to actual tensors on CPU.
-            Uses to_empty() followed by reset_parameters() for proper initialization.
-        '''
-        # First move to target device (still meta), then to CPU with actual memory
-        module = module.to_empty(device=device)
-        
-        # Recursively reset parameters to allocate actual memory
-        def reset_module_params(mod):
-            for name, child in mod.named_children():
-                reset_module_params(child)
-            if hasattr(mod, 'reset_parameters'):
-                mod.reset_parameters()
-        
-        reset_module_params(module)
-        return module
-    
     def gen_input(self, bs: int = 8, seq_len: int = 512, device = 'cpu'):
         '''
             Generate the input for the model.
@@ -225,24 +368,35 @@ class ModelProfiler(Profiler):
         '''
         # input args' shape
         input_ids_shape = (bs, seq_len)
-        input_shape, attention_shape  = [bs, seq_len, self.hidden_size], [bs, seq_len]
+        attention_shape  = [bs, seq_len]
 
         # generate the input
         input_ids = self.__class__.to_device(torch.ones(input_ids_shape, dtype=torch.int64), device)
-        position_ids = self.__class__.to_device(torch.arange(0, input_shape[1], dtype=torch.int64).unsqueeze(0), device)
+        position_ids = torch.arange(0, seq_len, dtype=torch.int64).unsqueeze(0).expand(bs, -1)
         attention_mask = torch.ones(attention_shape, dtype=torch.int64)
 
         # move embeds and rotate to target device (self.mask is a method, not a module)
         self.embeds = self.__class__.to_device(self.embeds, device)
-        self.rotate = self.__class__.to_device(self.rotate, device)
-
-        # mask the attention mask
+        hidden_state = self.embeds(input_ids)
         attention_mask = self.__class__.to_device(self.mask(attention_mask), device)
-        
-        # generate the input(hidden state, embeds)
-        hidden_state = self.embeds(input_ids)        
+
+        if self.model_type == 'gpt2':
+            self.rotate = self.__class__.to_device(self.rotate, device)
+            position_embeds = self.rotate(self.__class__.to_device(position_ids, device))
+            hidden_state = hidden_state + position_embeds
+            return {
+                'hidden_states': hidden_state,
+                'attention_mask': attention_mask,
+            }
+
+        self.rotate = self.__class__.to_device(self.rotate, device)
+        position_ids = self.__class__.to_device(position_ids, device)
         input_embeds = self.rotate(hidden_state, position_ids)
-        return input_embeds, attention_mask, hidden_state
+        return {
+            'position_embeddings': input_embeds,
+            'attention_mask': attention_mask,
+            'hidden_states': hidden_state,
+        }
 
     def get_calflops(self, bs: int = 8, seq_len: int = 512, device = 'cpu'):
         '''
@@ -258,14 +412,11 @@ class ModelProfiler(Profiler):
                 bwd_flops: backward flops
                 param: params
         '''
+        if calculate_flops is None:
+            raise ModuleNotFoundError('calflops is required for FLOPs profiling. Install dependencies from HF-LLM-Profiler/requirements.txt.')
         # gen input for the model transformer
         self.init_empty_model(device = device)
-        input_embeds, attention_mask, hidden_state = self.gen_input(bs, seq_len, device)
-        kwargs = {
-            'position_embeddings': input_embeds,
-            'attention_mask': attention_mask,
-            'hidden_states': hidden_state
-        }
+        kwargs = self.gen_input(bs, seq_len, device)
         
         # get the flops of the model in forward and backward pass with a single transformer block
         fwd_trans_flops, fwd_trans_macs, trans_params = calculate_flops(  
@@ -337,112 +488,51 @@ class ModelProfiler(Profiler):
                 (end_memory - model_memory) * self.layer / 1024**3: activation memory
                 (end_memory - begin_memory) * self.layer / 1024**3: total memory
         '''
-        # Update backend based on device parameter
-        if 'cuda' in device:
-            self.backend = "cuda"
-        elif 'npu' in device:
-            self.backend = "npu"
-        else:
-            self.backend = "cpu"
         # gen input for the model transformer
         # for profiler gpu memory set model init device to 'cpu'
         if not skip_init:
             self.init_empty_model(device = 'cpu')
-        input_embeds, attention_mask, hidden_state = self.gen_input(bs, seq_len, 'cpu' if not skip_init else device)
-        
-        # Prepare kwargs
-        kwargs = {
-            'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
-            'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
-            'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
-        }
-        
-        # set torch device
-        getattr(torch, self.backend).set_device(device)
-        # set params
-        begin_time, end_time = 0, 0
-        
-        if skip_init:
-            # Model already on device, calculate model memory from parameters
-            # Reset peak memory stats first to get accurate activation measurement
-            getattr(torch, self.backend).reset_peak_memory_stats(device)
-            begin_memory = 0
-            
-            # Calculate model memory by summing parameter sizes
-            model_param_bytes = 0
-            for param in self.trans.parameters():
-                if param is not None:
-                    model_param_bytes += param.numel() * param.element_size()
-            # Convert to same units as max_memory_allocated (bytes)
-            model_memory = model_param_bytes
-        else:
-            begin_memory = getattr(torch, self.backend).max_memory_allocated(device)
-            # get the model's memory usage
-            self.__class__.to_device(self.trans, device)
-            model_memory = getattr(torch, self.backend).max_memory_allocated(device)
-        
-        end_memory = 0
+        base_kwargs = self.gen_input(bs, seq_len, 'cpu' if not skip_init else device)
 
-        if fwd_flag:
-            # forward pass
-            with torch.no_grad():
-                for _ in range(test_round + skip_round * 2):
-                    if _ == skip_round:
-                        begin_time = time.time()
-                    elif _ == skip_round + test_round:
-                        end_time = time.time()
-                        end_memory = getattr(torch, self.backend).max_memory_allocated(device)
-                    if profile_flag == 'time':
-                        kwargs = {
-                            'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
-                            'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
-                            'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
-                        }
-                    # forward
-                    tensor = self.trans(**kwargs)
-        else:
-            # backward pass
-            for _ in range(test_round + skip_round * 2):
-                if _ == skip_round:
-                    begin_time = time.time()
-                elif _ == skip_round + test_round:
-                    end_time = time.time()
-                    end_memory = getattr(torch, self.backend).max_memory_allocated(device)
-                if profile_flag == 'time':
-                    kwargs = {
-                        'position_embeddings': (self.__class__.to_device(input_embeds[0].detach(), device), self.__class__.to_device(input_embeds[1].detach(), device)),
-                        'attention_mask': self.__class__.to_device(attention_mask.detach(), device),
-                        'hidden_states': self.__class__.to_device(hidden_state.detach(), device) if fwd_flag else self.__class__.to_device(hidden_state.detach(), device).requires_grad_(True)
-                    }
-                self.trans.zero_grad()
-                # forward
-                tensor = self.trans(**kwargs)
-                # backward
-                torch.autograd.backward(tensor[0] if type(tensor) is tuple else tensor, grad_tensors=torch.ones_like(tensor[0] if type(tensor) is tuple else tensor))
+        def input_factory(target_device, is_forward):
+            kwargs = {}
+            for key, value in base_kwargs.items():
+                kwargs[key] = self._detach_to_device(value, target_device, requires_grad=(key == 'hidden_states' and not is_forward))
+            return (), kwargs
+
+        run_time, model_mem, act_mem, total_mem = self._profile_module(
+            self.trans,
+            input_factory=input_factory,
+            device=device,
+            fwd_flag=fwd_flag,
+            profile_flag=profile_flag,
+            skip_round=skip_round,
+            test_round=test_round,
+            scale_factor=1 if block_flag else self.layer,
+        )
 
         # print the result
         if self.verbose:
             print(f"{self.model_id} | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}")
             if profile_flag == 'time':
                 if block_flag:
-                    print(f'block runing time: {(end_time - begin_time) / test_round:.5f} s')
+                    print(f'block runing time: {run_time:.5f} s')
                 else:
-                    print(f'model runing time: {(end_time - begin_time) / test_round * self.layer:.5f} s')
+                    print(f'model runing time: {run_time:.5f} s')
             else:
                 if block_flag:
-                    print(f'block model memory: {(model_memory - begin_memory) / 1024**3:.4f} GB')
-                    print(f'block activation memory: {(end_memory - model_memory) / 1024**3:.4f} GB')
-                    print(f'block total memory: {(end_memory - begin_memory) / 1024**3:.4f} GB')
+                    print(f'block model memory: {model_mem:.4f} GB')
+                    print(f'block activation memory: {act_mem:.4f} GB')
+                    print(f'block total memory: {total_mem:.4f} GB')
                 else:
-                    print(f'model memory: {(model_memory - begin_memory) / 1024**3:.4f}/{(model_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
-                    print(f'activation memory: {(end_memory - model_memory) / 1024**3:.4f}/{(end_memory - model_memory) * self.layer / 1024**3:.4f} GB')
-                    print(f'total memory: {(end_memory - begin_memory) / 1024**3:.4f}/{(end_memory - begin_memory) * self.layer / 1024**3:.4f} GB')
-        return (end_time - begin_time) / test_round * (1 if block_flag else self.layer), \
-                (model_memory - begin_memory) * (1 if block_flag else self.layer) / 1024**3, \
-                (end_memory - model_memory) * (1 if block_flag else self.layer) / 1024**3, \
-                (end_memory - begin_memory) * (1 if block_flag else self.layer) / 1024**3
+                    print(f'model memory: {model_mem / self.layer:.4f}/{model_mem:.4f} GB')
+                    print(f'activation memory: {act_mem / self.layer:.4f}/{act_mem:.4f} GB')
+                    print(f'total memory: {total_mem / self.layer:.4f}/{total_mem:.4f} GB')
+        return run_time, model_mem, act_mem, total_mem
 
     def peftModel(self, config: PeftConfig = None):
+        if LoraConfig is None or get_peft_model is None:
+            raise ModuleNotFoundError('peft is required for LoRA profiling. Install dependencies from HF-LLM-Profiler/requirements.txt.')
         if config is None:
             rank, lora_alpha, lora_dropout = 8, 16, 0.05
             config = LoraConfig(
@@ -462,14 +552,112 @@ class EmbeddingProfiler(Profiler):
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
         for the embedding model. 
     '''
-    pass
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype: torch.dtype = None, device: str = 'cpu'):
+        super().__init__(model_id_or_path, verbose=verbose, dtype=dtype, device=device)
+        self.embeds = self.get_model(self.model)
+
+    def get_model(self, model):
+        return self.get_attr(MODEL_EMBED_KEY, model, self.model_type)
+
+    def init_empty_model(self, device='cpu'):
+        self.embeds = self._materialize_module(self.embeds, device)
+
+    def gen_input(self, bs: int = 8, seq_len: int = 512, device='cpu'):
+        return self.__class__.to_device(torch.ones((bs, seq_len), dtype=torch.int64), device)
+
+    def profile(self, bs: int, seq_len: int, device='cpu', fwd_flag=True, profile_flag: str = 'time',
+                skip_round: int = 10, test_round: int = 5, skip_init: bool = False, block_flag: bool = True):
+        if not skip_init:
+            self.init_empty_model(device='cpu')
+        input_ids = self.gen_input(bs, seq_len, 'cpu' if not skip_init else device)
+
+        def input_factory(target_device, _):
+            return (self._detach_to_device(input_ids, target_device),), {}
+
+        run_time, model_mem, act_mem, total_mem = self._profile_module(
+            self.embeds,
+            input_factory=input_factory,
+            device=device,
+            fwd_flag=fwd_flag,
+            profile_flag=profile_flag,
+            skip_round=skip_round,
+            test_round=test_round,
+            scale_factor=1,
+        )
+
+        if self.verbose:
+            print(f"{self.model_id} | embedding | batch size {bs} | seq_len {seq_len} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}")
+            if profile_flag == 'time':
+                print(f'embedding runing time: {run_time:.5f} s')
+            else:
+                print(f'embedding model memory: {model_mem:.4f} GB')
+                print(f'embedding activation memory: {act_mem:.4f} GB')
+                print(f'embedding total memory: {total_mem:.4f} GB')
+        return run_time, model_mem, act_mem, total_mem
+
+    def peftModel(self, config: PeftConfig = None):
+        raise NotImplementedError('EmbeddingProfiler does not support PEFT profiling.')
 
 class FFNProfiler(Profiler):
     '''
         This class is used to estimate the total GPU memory, runtime, and FLOPs 
         for the model's FFN(at the last layers of the model).
     '''
-    pass
+    def __init__(self, model_id_or_path: str, verbose: bool = False, dtype: torch.dtype = None, device: str = 'cpu'):
+        super().__init__(model_id_or_path, verbose=verbose, dtype=dtype, device=device)
+        self.ffn = self.get_model(self.model)
+
+    def get_model(self, model):
+        layer = self.get_attr(MODEL_TRANS_KEY, model, self.model_type)[0]
+        ffn = getattr(layer, 'mlp', None)
+        if ffn is None:
+            raise ValueError(f'Model {self.model_id} does not expose an `mlp` module for FFN profiling.')
+        return ffn
+
+    def init_empty_model(self, device='cpu'):
+        self.ffn = self._materialize_module(self.ffn, device)
+
+    def gen_input(self, bs: int = 8, seq_len: int = 512, device='cpu'):
+        return self.__class__.to_device(torch.randn((bs, seq_len, self.hidden_size), dtype=self.dtype_), device)
+
+    def profile(self, bs: int, seq_len: int, device='cpu', fwd_flag=True, profile_flag: str = 'time',
+                skip_round: int = 10, test_round: int = 5, skip_init: bool = False, block_flag: bool = True):
+        if not skip_init:
+            self.init_empty_model(device='cpu')
+        hidden_states = self.gen_input(bs, seq_len, 'cpu' if not skip_init else device)
+
+        def input_factory(target_device, is_forward):
+            return (self._detach_to_device(hidden_states, target_device, requires_grad=not is_forward),), {}
+
+        scale_factor = 1 if block_flag else self.layer
+        run_time, model_mem, act_mem, total_mem = self._profile_module(
+            self.ffn,
+            input_factory=input_factory,
+            device=device,
+            fwd_flag=fwd_flag,
+            profile_flag=profile_flag,
+            skip_round=skip_round,
+            test_round=test_round,
+            scale_factor=scale_factor,
+        )
+
+        if self.verbose:
+            print(f"{self.model_id} | ffn | batch size {bs} | seq_len {seq_len} | layers {self.layer} | {self.dtype_} | {'forward' if fwd_flag else 'backward'}")
+            if profile_flag == 'time':
+                print(f"{'block' if block_flag else 'model'} ffn runing time: {run_time:.5f} s")
+            else:
+                if block_flag:
+                    print(f'block ffn model memory: {model_mem:.4f} GB')
+                    print(f'block ffn activation memory: {act_mem:.4f} GB')
+                    print(f'block ffn total memory: {total_mem:.4f} GB')
+                else:
+                    print(f'model ffn memory: {model_mem / self.layer:.4f}/{model_mem:.4f} GB')
+                    print(f'model ffn activation memory: {act_mem / self.layer:.4f}/{act_mem:.4f} GB')
+                    print(f'model ffn total memory: {total_mem / self.layer:.4f}/{total_mem:.4f} GB')
+        return run_time, model_mem, act_mem, total_mem
+
+    def peftModel(self, config: PeftConfig = None):
+        raise NotImplementedError('FFNProfiler does not support PEFT profiling.')
 
 def test():
     '''
